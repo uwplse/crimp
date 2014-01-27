@@ -5,4 +5,4 @@ Certified Relational to Imperative
 
 
 
-Inspired by https://github.com/uwescience/datalogcompiler.
+Inspired by verifying transformations in https://github.com/uwescience/datalogcompiler.
