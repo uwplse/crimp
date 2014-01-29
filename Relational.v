@@ -141,6 +141,9 @@ Fixpoint selectHelper (src : Relation) (p : Pred) (res : Relation) : option Rela
 Definition select (r : Relation) (p : Pred) : option Relation :=
  selectHelper r p rnil.
 
+(* non tail recursive version. This might make proofs easier.
+Given that loops in IMP will likely
+be defined with tail recusion though, it is not clear which style is better *)
 Fixpoint select' (r: Relation) (p: Pred) : option Relation :=
   match r with
     | rnil => Some rnil
