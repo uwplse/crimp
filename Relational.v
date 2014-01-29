@@ -7,6 +7,25 @@ Print list.
  | cons : nat -> tuplen (n-1) -> tuplen n.
 *)
 
+Inductive tuplen (T: Set) : nat -> Set :=
+| tnnil : tuplen T 0
+| tncons : T -> forall l, tuplen T l -> tuplen T (S l).
+
+Definition relation_n (T: Set) (r n: nat) : Set :=
+  tuplen (tuplen T r) n.
+
+Definition relation (T: Set) (r: nat) : Set :=
+  list (tuplen T r).
+
+Print sig.
+
+Definition length_refined_lists (T: Set) (l: list T) (n: nat) : Set :=
+  { l | @length T l = n }.
+
+Inductive nattuplen : nat -> Set :=
+| ntnnil : nattuplen 0
+| ntncons : nat -> forall l, nattuplen l -> nattuplen (S l).
+
 (* TODO length as part of tuple type *)
 Inductive tuple : Set :=
   | tnil : tuple
@@ -72,6 +91,8 @@ Definition evalNExp (e : NExp) (t : tuple) : option nat :=
   | AConst aref => attrLookup t aref
 end. 
 
+(* check it out : http://compcert.inria.fr/doc/html/Compiler.html *)
+
 Fixpoint evalPred (p : Pred) (t : tuple) : option bool :=
   match p with
    | BConst b => Some b
@@ -120,6 +141,21 @@ Fixpoint selectHelper (src : Relation) (p : Pred) (res : Relation) : option Rela
 Definition select (r : Relation) (p : Pred) : option Relation :=
  selectHelper r p rnil.
 
+Fixpoint select' (r: Relation) (p: Pred) : option Relation :=
+  match r with
+    | rnil => Some rnil
+    | rcons t r' =>
+      match select' r' p with
+        | None => None
+        | Some r'' => 
+          match evalPred p t with
+            | None => None
+            | Some true => Some (rcons t r'')
+            | Some false => Some r''
+          end
+      end
+  end.
+
 Check select.
 
 Eval simpl in rcons (tcons 1 (tcons 2 tnil)) (rcons (tcons 1 (tcons 3 tnil)) rnil).
@@ -134,7 +170,43 @@ Fixpoint rlength (r : Relation) : nat :=
    | rcons t rem => 1 + (rlength rem)
 end. 
 
-Theorem select_decreasing : forall pred rel, let rsel := select rel pred in
+Ltac inv H :=
+  inversion H; subst; clear H.
+
+Theorem select'_decreasing :
+  forall rel pred sel,
+  select' rel pred = Some sel ->
+  rlength sel <= rlength rel.
+Proof.
+  induction rel; intros.
+  inv H; auto.
+
+  remember H as H'; clear HeqH'.
+  simpl in H'.
+  destruct (select' rel pred) eqn:?; try discriminate.
+  destruct (evalPred pred t) eqn:?; try discriminate.
+  destruct b; inv H'; simpl.
+  apply le_n_S. eapply IHrel; eauto.
+  specialize (IHrel pred sel).
+  apply IHrel in Heqo. omega.
+Qed.  
+  
+
+Theorem select_decreasing :
+  forall rel pred sel,
+  select rel pred = Some sel ->
+  rlength sel <= rlength rel.
+Proof.
+(*
+  induction rel; simpl; intros.
+  inversion H; subst. simpl; auto.
+  destruct pred; simpl in H.
+  destruct b. constructor.
+*)
+  
+
+
+ forall pred rel, let rsel := select rel pred in
      match rsel with
        | None => True
        | Some rsel' => (rlength rsel') <= (rlength rel)
