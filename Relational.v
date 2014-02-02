@@ -231,7 +231,7 @@ Proof.
   destruct (evalPred pred t) eqn:?; try discriminate.
   destruct b; inv H'; simpl.
   Check le_n_S.
-  apply le_n_S. eapply IHrel; eauto.
+  apply le_n_S. eapply IHrel; eauto.  (* somehow avoided getting r0 and r mixed up *)
   specialize (IHrel pred sel). (* fill in pred and sel *)
   apply IHrel in Heqo. omega. (* tactic for inequalities on nats *)
 
