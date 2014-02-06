@@ -1,6 +1,8 @@
 Require Import Bool Arith List CpdtTactics.
 Set Implicit Arguments.
 
+Module Relational.
+
 Print list.
 (*Inductive tuplen (n : nat) : Set :=
  | nil : tuplen n
@@ -26,7 +28,6 @@ Inductive nattuplen : nat -> Set :=
 | ntnnil : nattuplen 0
 | ntncons : nat -> forall l, nattuplen l -> nattuplen (S l).
 
-(* TODO length as part of tuple type *)
 Inductive tuple : Set :=
   | tnil : tuple
   | tcons : nat -> tuple -> tuple.
