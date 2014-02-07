@@ -4,10 +4,6 @@ Set Implicit Arguments.
 Module Relational.
 
 Print list.
-(*Inductive tuplen (n : nat) : Set :=
- | nil : tuplen n
- | cons : nat -> tuplen (n-1) -> tuplen n.
-*)
 
 Inductive tuplen (T: Set) : nat -> Set :=
 | tnnil : tuplen T 0
@@ -21,6 +17,8 @@ Definition relation (T: Set) (r: nat) : Set :=
 
 Print sig.
 
+(* an example of refining types.
+   Could make some proofs harder.*)
 Definition length_refined_lists (T: Set) (l: list T) (n: nat) : Set :=
   { l | @length T l = n }.
 
@@ -177,6 +175,49 @@ end.
 Ltac inv H :=
   inversion H; subst; clear H.
 
+Lemma ConsLength : forall rel1 rel2 t, rlength (rcons t rel1) <= rlength (rcons t rel2) -> rlength rel1 <= rlength rel2.
+Proof.
+  crush.
+Qed.
+Lemma ConsLength' : forall rel1 rel2 t, rlength rel1 <= rlength rel2 -> rlength (rcons t rel1) <= rlength (rcons t rel2).
+Proof.
+  crush.
+Qed.
+Lemma SucCons : forall rel t, rlength (rcons t rel) = S (rlength rel).
+Proof.
+crush.
+Qed.
+Lemma SucCons' : forall rel t, S (rlength rel) = rlength (rcons t rel).
+Proof.
+crush.
+Qed.
+Lemma MoveSuc : forall rel1 rel2 rel1', rlength rel1 <= S (rlength rel2) -> match rel1 with 
+                                                                           | rnil => rlength rel1 <= rlength rel2
+                                                                           | _ => S (rlength rel1') = rlength rel1 -> rlength rel1' <= rlength rel2
+                                                                          end.
+Proof.
+intros.
+destruct rel1 eqn:?.
+crush.
+crush.
+Qed.
+
+Lemma MoveSuc' : forall rel1 rel2, match rel1 with 
+                                              | rnil => rlength rel1 <= rlength rel2
+                                              | _ => exists rel1', S (rlength rel1') = rlength rel1 /\ rlength rel1' <= rlength rel2
+                                            end ->  rlength rel1 <= S (rlength rel2).  
+Proof.
+intros.
+destruct rel1 eqn:?.
+crush.
+crush.
+Qed.
+ Lemma ConsLengthTrans : forall rel1 rel2 rel3 t, rel1 = rcons t rel3 /\ rlength rel1 <= rlength rel2 -> rlength rel3 <= rlength rel2.
+Proof.
+crush.
+Qed.
+
+
 Theorem select'_decreasing :
   forall rel pred sel,
   select' rel pred = Some sel ->
@@ -185,69 +226,58 @@ Proof.
   induction rel; intros.
   inv H; auto.
 
-  remember H as H'; clear HeqH'.
+  remember H as H'; clear HeqH'. (* make a copy of H to keep it around *)
   simpl in H'.
   destruct (select' rel pred) eqn:?; try discriminate.
   destruct (evalPred pred t) eqn:?; try discriminate.
   destruct b; inv H'; simpl.
-  apply le_n_S. eapply IHrel; eauto.
-  specialize (IHrel pred sel).
-  apply IHrel in Heqo. omega.
-Qed.  
-  
+  Check le_n_S.
+  apply le_n_S. eapply IHrel; eauto.  (* somehow avoided getting r0 and r mixed up *)
+  specialize (IHrel pred sel). (* fill in pred and sel *)
+  apply IHrel in Heqo. omega. (* tactic for inequalities on nats *)
 
-Theorem select_decreasing :
-  forall rel pred sel,
-  select rel pred = Some sel ->
-  rlength sel <= rlength rel.
-Proof.
-(*
-  induction rel; simpl; intros.
-  inversion H; subst. simpl; auto.
-  destruct pred; simpl in H.
-  destruct b. constructor.
-*)
-  
+  (* Qed here *)
 
-
- forall pred rel, let rsel := select rel pred in
-     match rsel with
-       | None => True
-       | Some rsel' => (rlength rsel') <= (rlength rel)
-     end.
-  induction rel.
-  induction pred.
-  intros.
-  subst rsel.
-  simpl.
-  reflexivity.
-
-  intros.
-  subst rsel.
-  simpl.
-  reflexivity.
-  
   Restart.
-  induction pred.
-  admit.
-  admit.
+  induction rel. 
   intros.
-  subst rsel.
-  (* actually need forall over preds *)
-  Restart.
-
-  intros.
-  subst rsel.
-  induction rel.
-  induction pred.
+  simpl.
+  unfold select' in H.
+  inversion H. (* get rid of Some's both sides *)
   simpl.
   reflexivity.
+  (* base case done *)
 
-  simpl.
-  reflexivity.
+  intros.
+  remember H as H'. clear HeqH'.
+  inversion H.
+  destruct (select' rel pred) eqn:?. (* eqn:? preserves the matched r'' relational *)
+  destruct (evalPred pred t) eqn:?.
+  destruct b. (* cases of pred true false *)
+  (* b=true case *)
+  inversion H1.
+  apply ConsLength'.
+  apply IHrel with pred.
+  assumption.
 
+  (*b = false case*)
+  inversion H1.
+  rewrite SucCons.
+  apply MoveSuc'.
+  destruct sel eqn:?.
   crush.
+  exists r0.
+  split.
+  crush.
+  apply ConsLengthTrans with r t0.
+  split.
+  assumption.
+  apply IHrel with pred.
+  assumption.
+  
+  (* evalPred => None case *)
+  discriminate.
 
-  (* here we dont have forall rel so can't unify *)
-  apply IHrel.
-
+  (* select' => None case *)
+  discriminate.
+Qed.
