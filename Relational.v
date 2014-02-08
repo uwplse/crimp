@@ -1,6 +1,8 @@
 Require Import Bool Arith List CpdtTactics.
 Set Implicit Arguments.
 
+Module Relational.
+
 (* Defines a tuple of length 'n'. Zach's defition, not used. *)
 Inductive tuplen (T: Set) : nat -> Set :=
 | tnnil : tuplen T 0
@@ -24,9 +26,6 @@ Definition length_refined_lists (T: Set) (l: list T) (n: nat) : Set :=
 Inductive nattuplen : nat -> Set :=
 | ntnnil : nattuplen 0
 | ntncons : nat -> forall l, nattuplen l -> nattuplen (S l).
-
-
-(* Here starts the formalism done by Brandon and Kivanc. *)
 
 (* Tuple, defined as a list of natural numbers. *)
 Inductive tuple : Set :=
