@@ -68,16 +68,19 @@ Inductive Exp : Set :=
     | RelationExp : Relation -> Exp
     | ApplyPred : Pred -> Exp -> Exp.
 
+Inductive VarName : Set :=
+    | VarLHS : nat -> VarName.
+
 Inductive Statement : Set :=
     | Seq : Statement -> Statement -> Statement
     | Forall : VarName -> Relation -> Statement -> Statement
-    | If : Exp -> Statement -> Statement
-    | Assign : VarName -> Exp -> Statement.
+    | If : Exp -> Statement -> Statement -> Statement
+    | Assign : VarName -> Exp -> Statement
+    | Skip : Statement.
 
 (* Pred: t -> bool *)
 
-Inductive VarName : Set :=
-    | VarLHS : nat -> VarName.
+
 
 
 (* Fill in exactly Relational.Pred.
@@ -86,8 +89,32 @@ until we have denotation *)
 
 (* t = var 1
    ans = var 0 *)
-Definition ImpSelect (pred : Pred) (rel : Relation) : Set :=
-    Seq (Assign (VarLHS 0) (RelationExp Rnil)) (Forall (VarLHS 1) rel (If (ApplyPred pred (Var 1)) (Assign (Var 0) (Append (Var 1) (Var 0))))).
+Definition ImpSelect (pred : Pred) (rel : Relation) : Statement :=
+    Seq (Assign (VarLHS 0) (RelationExp Rnil)) (Forall (VarLHS 1) rel (If (ApplyPred pred (Var 1)) (Assign (VarLHS 0) (Append (Var 1) (Var 0))) Skip )).
+
+Eval compute in ImpSelect (BConst true) (Rcons (Tcons (Int 1) Tnil) Rnil).
 
 (* TODO: semantics for execute, then theorem *)
 
+
+Inductive heap : Set :=
+  | hnil : heap
+  | hcons : nat (*key*) -> nat (*value*) -> heap -> heap.
+
+Fixpoint impExecuteStep (h : heap) (s : Statement) : heap * Statement :=
+  match s with
+    | Seq s1 s2 => match s1 with 
+                     | Skip => (h, s2)
+                     | _ => let (h', s1') := impExecuteStep h s1 in
+                       (h', (Seq s1' s2))
+                   end
+    | If e s1 s2 => let c := impEvalExp h e in
+                       if c then (h, s1) else (h, s2)
+    | Assign vn e => let c := impEvalExp h e in
+                       (insert h vn c, Skip)
+    | Forall vn r s' => match r with
+                            | Rnil => (h, Skip)
+                            | Rcons t rem => let h' := (replaceH h vn t) in
+                              (h', Seq s' (Forall vn rem s'))  
+                        end
+    end.
