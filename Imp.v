@@ -14,6 +14,9 @@
     choices: untyped and write proofs as execute produces something
     vs if typed then proceeds*)
 
+Load Relational.
+(* If Relational.vo exists, then can Require Import Relational. *)
+
 Module Imp.
 
 (* Initial typed start
@@ -47,7 +50,7 @@ Inductive BExp : Set :=
 
 Inductive Val : Set :=
     | Int : nat -> Val
-    | Bool : bool -> bool.
+    | Bool : bool -> Val.
 
 Inductive Tuple : Set :=
     | Tnil : Tuple
