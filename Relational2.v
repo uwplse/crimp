@@ -53,87 +53,42 @@ Fixpoint runStatement (s: Statement) (input: relation) : option relation :=
                    end
   end.
 
-Fixpoint runImpSmall (p: ImpProgram) (result: option relation) (input: relation) 
-    : ImpProgram  * option relation :=
-  match p with
-  | Seq s p' => let result' := runStatement s input
-                in (p', result')
-  | Skip => (Skip, None) (* Make this case an exception? *)
-  end.
-
+(* It turns out that we do not (and should not) have
+   runImpSmall (small step semantics). Because otherwise
+   Coq cannot figure out that our function is structurally
+   recursive. Special thanks go to Eric Mullen and Zach
+   Tatlock.
+*)
 Definition runImp (p : ImpProgram) (input : relation) : option relation :=
   let fix helper (p : ImpProgram) (result: option relation) : option relation := 
     match p with
-      | Skip => result
-      | _ => let (p', result') := runImpSmall p result input
-            in helper p' result'
+    | Skip => result
+    | Seq s p' => helper p' (runStatement s input)
     end
   in helper p (Some Rnil).
 
-(* KM: I did not have a chance to look at below, it is very much chaotic. *)
-
-(*
-Lemma SkipNoop: forall (p: ImpProgram) (r r': relation), 
-   runImp (Seq p Skip) r = Some r' -> runImp p r = Some r'.
-   intros.
-   induction p.
-   
-   compute in IHp1.
-   crush.
-admit.
-
-
-Lemma SkipNoop' : forall (p: ImpProgram) (r r': relation), 
-    runImp p r = Some r' -> runImp (Seq p Skip) r = Some r'.    
+Theorem queryEquivalence: 
+  forall (q : Query) (p : ImpProgram),
+    queryToImp q = Some p ->
+      forall (r r' : relation), runQuery q r = Some r' ->
+        runImp p r = Some r'.
+Proof.
     intros.
     induction p.
     
-    .
-*)
+    (* P = Seq s p *)
+    clear IHp.
 
-Theorem queryEquivalence : forall (q : Query) (p : ImpProgram),
-                              queryToImp q = Some p ->
-                                 forall (r r' : relation), runQuery q r = Some r' ->
-                                                           runImp p r = Some r'.
-    intros.
-    (*
-    unfold queryToImp in H.
-    destruct q in H.
-    destruct b in H.
-    inversion H.
-    *)
-    induction p.
-
+    destruct q.
+    destruct b.
+    simpl in H; inversion H; clear H; clear H2; clear H3.
+    simpl in H0.
     
-    unfold queryToImp in H.
-    destruct q in H.
-    destruct b in H.
-    inversion H.
-    unfold runImp.
-    rewrite <- H3 in IHp2. clear H3.
-    rewrite <- H2 in IHp1. clear H2.
-    apply H0.
+    simpl.
+    assumption.
     
-    admit.
-    
-    (* program = Assign v e *)
-    unfold queryToImp in H.
-    destruct q in H.
-    destruct b in H.
-    inversion H.
-
-    unfold queryToImp in H.
-    destruct q in H.
-    destruct b in H.
-    inversion H.
-Qed.
- unfold runImp in 
- 
- crush.
-
- unfold runImp.
- destruct p.
- destruct v.
- destruct e.
- reflexivity.
+    (* P = Skip *)
+    destruct q.
+    destruct b.
+    simpl in H; inversion H. 
 Qed.
