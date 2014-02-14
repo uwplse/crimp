@@ -28,10 +28,12 @@ Inductive Exp : Set :=
 Inductive VarName : Set :=
   | ResultName : VarName.
 
+Inductive Statement : Set :=
+  | Assign : VarName -> Exp -> Statement.
+
 Inductive ImpProgram : Set :=
-  | Seq : ImpProgram -> ImpProgram -> ImpProgram
-  | Assign : VarName -> Exp -> ImpProgram
-  | Skip : ImpProgram.
+  | Seq : Statement -> ImpProgram -> ImpProgram
+  | Skip.
 
 Definition queryToImp (q : Query) : option ImpProgram :=
   match q with
@@ -41,33 +43,90 @@ Definition queryToImp (q : Query) : option ImpProgram :=
                  end
   end.
 
-Definition runImp (p : ImpProgram) (r : relation) : option relation :=
- let fix helper (p : ImpProgram) (result : relation) : ImpProgram * relation := 
+Fixpoint runStatement (s: Statement) (input: relation) : option relation :=
+  match s with
+  | Assign vn e => match vn with
+                   | ResultName => match e with
+                                   | InputRelation => Some input
+                                   | RelationExp rexp => Some rexp 
+                                   end
+                   end
+  end.
+
+Fixpoint runImpSmall (p: ImpProgram) (result: option relation) (input: relation) 
+    : ImpProgram  * option relation :=
   match p with
-   | Seq p1 p2 => match p1 with
-                    | Skip => (p2, result) 
-                    | _ => let (p1', result') := helper p1 result in
-                      (Seq p1' p2, result')
-                  end
-   | Assign vn e => match vn with
-                     | ResultName => match e with
-                                       | InputRelation => (Skip, r)
-                                       | RelationExp rexp => (Skip, rexp) 
-                                     end
-                    end
-   | Skip => (Skip, result)
-  end
-  in 
-  let (_, result ) := helper p Rnil in
-    Some result.
+  | Seq s p' => let result' := runStatement s input
+                in (p', result')
+  | Skip => (Skip, None) (* Make this case an exception? *)
+  end.
+
+Definition runImp (p : ImpProgram) (input : relation) : option relation :=
+  let fix helper (p : ImpProgram) (result: option relation) : option relation := 
+    match p with
+      | Skip => result
+      | _ => let (p', result') := runImpSmall p result input
+            in helper p' result'
+    end
+  in helper p (Some Rnil).
+
+(* KM: I did not have a chance to look at below, it is very much chaotic. *)
+
+(*
+Lemma SkipNoop: forall (p: ImpProgram) (r r': relation), 
+   runImp (Seq p Skip) r = Some r' -> runImp p r = Some r'.
+   intros.
+   induction p.
+   
+   compute in IHp1.
+   crush.
+admit.
 
 
+Lemma SkipNoop' : forall (p: ImpProgram) (r r': relation), 
+    runImp p r = Some r' -> runImp (Seq p Skip) r = Some r'.    
+    intros.
+    induction p.
+    
+    .
+*)
 
 Theorem queryEquivalence : forall (q : Query) (p : ImpProgram),
                               queryToImp q = Some p ->
                                  forall (r r' : relation), runQuery q r = Some r' ->
-                                                           runImp p r = Some r'.                intros.
- induction p.
+                                                           runImp p r = Some r'.
+    intros.
+    (*
+    unfold queryToImp in H.
+    destruct q in H.
+    destruct b in H.
+    inversion H.
+    *)
+    induction p.
+
+    
+    unfold queryToImp in H.
+    destruct q in H.
+    destruct b in H.
+    inversion H.
+    unfold runImp.
+    rewrite <- H3 in IHp2. clear H3.
+    rewrite <- H2 in IHp1. clear H2.
+    apply H0.
+    
+    admit.
+    
+    (* program = Assign v e *)
+    unfold queryToImp in H.
+    destruct q in H.
+    destruct b in H.
+    inversion H.
+
+    unfold queryToImp in H.
+    destruct q in H.
+    destruct b in H.
+    inversion H.
+Qed.
  unfold runImp in 
  
  crush.
