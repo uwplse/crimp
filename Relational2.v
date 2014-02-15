@@ -7,7 +7,7 @@ Inductive relation : Set :=
 
 Inductive Bool : Set :=
   | BTrue : Bool
-(*  | BFalse : Bool. *).
+  | BFalse : Bool.
 
 Inductive Query : Set := 
  | Select : Bool -> Query.
@@ -16,7 +16,7 @@ Definition runQuery (q : Query) (r : relation) : option relation :=
   match q with 
    | Select b => match b with 
                   | BTrue => Some r
-                (*  | BFalse => Some Rnil *)
+                  | BFalse => Some Rnil
                  end 
   end.
 
@@ -39,7 +39,7 @@ Definition queryToImp (q : Query) : option ImpProgram :=
   match q with
    | Select b => match b with
                    | BTrue => Some (Seq (Assign ResultName InputRelation) Skip) 
-                  (* | BFalse => Some (Assign ResultName Rnil) *)
+                   | BFalse => Some (Seq (Assign ResultName (RelationExp Rnil)) Skip)
                  end
   end.
 
@@ -74,21 +74,16 @@ Theorem queryEquivalence:
         runImp p r = Some r'.
 Proof.
     intros.
-    induction p.
+    induction p;
     
-    (* P = Seq s p *)
-    clear IHp.
-
-    destruct q.
-    destruct b.
-    simpl in H; inversion H; clear H; clear H2; clear H3.
-    simpl in H0.
+    (* P = Seq s p AND Skip*)
+    destruct q;
+    (* Query = SELECT *)
+    destruct b;
+    (* boolean = TRUE and FALSE *)
+    simpl in H; inversion H; clear H; clear H2; clear H3;
+    simpl in H0;
     
-    simpl.
+    compute;
     assumption.
-    
-    (* P = Skip *)
-    destruct q.
-    destruct b.
-    simpl in H; inversion H. 
 Qed.
