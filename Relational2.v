@@ -161,6 +161,25 @@ Theorem queryEquivalence:
         runImp p r = Some r'.
 Proof.
     intros.
+    induction p.
+    destruct q.
+    
+    (* Select TRUE and Select FALSE *)
+    destruct b;
+    simpl in H; inversion H; clear H; clear H2; clear H3;
+    simpl in H0;
+    
+    compute;
+    assumption.
+    
+    (* Project <index> *)
+    simpl in H0. inversion H0.
+
+    simpl in H0. inversion H0. compute in H2. simpl in H2.
+    
+    simpl in H. inversion H. clear H. simpl in H0. inversion H0. clear H0. simpl H1.
+
+
     induction p;
     
     (* P = Seq s p AND Skip*)
