@@ -192,10 +192,9 @@ Fixpoint rlength (r : Relation) : nat :=
    | rcons t rem => 1 + (rlength rem)
 end. 
 
-(* KM: Left here. *)
-
-Ltac inv H :=
-  inversion H; subst; clear H.
+(* KM: Why do we need this again? 
+   I believe it is defining a new command 'inv' as a combination of three commands and Zach uses that in the proof, but I don't know. *)
+Ltac inv H := inversion H; subst; clear H.
 
 Lemma ConsLength : forall rel1 rel2 t, rlength (rcons t rel1) <= rlength (rcons t rel2) -> rlength rel1 <= rlength rel2.
 Proof.
@@ -240,6 +239,7 @@ crush.
 Qed.
 
 
+(* Zach's magical proof. *)
 Theorem select'_decreasing :
   forall rel pred sel,
   select' rel pred = Some sel ->
@@ -257,20 +257,62 @@ Proof.
   apply le_n_S. eapply IHrel; eauto.  (* somehow avoided getting r0 and r mixed up *)
   specialize (IHrel pred sel). (* fill in pred and sel *)
   apply IHrel in Heqo. omega. (* tactic for inequalities on nats *)
+Qed.
 
-  (* Qed here *)
+(*
+Lemma cons_preserving :
+    forall t,
+    select' (rcons t rel) pred = Some sel -> rlength sel <= rlength rel
+*)
 
-  Restart.
+(*
+Lemma cons_select :
+    forall rel pred t sel,
+    (select' rel pred = Some sel) \/
+    (exists rel2, rel = (rcons t rel2) /\ select' rel2 pred = Some sel) ->
+    select' (rcons t rel) pred = Some sel.
+Proof.
+intros.
+crush.
+admit.
+*)
+
+Theorem select'_decreasing' :
+  forall rel pred sel,
+  select' rel pred = Some sel ->
+  rlength sel <= rlength rel.
+Proof.
   induction rel. 
-  intros.
-  simpl.
-  unfold select' in H.
-  inversion H. (* get rid of Some's both sides *)
-  simpl.
-  reflexivity.
-  (* base case done *)
+  intros; crush.
 
   intros.
+  
+  specialize IHrel with pred sel.
+  inversion H. destruct (select' rel pred) eqn:?. destruct (evalPred pred t) eqn:?.
+  destruct b.
+  simpl in H.
+  
+
+  assert (Some r = Some sel).
+  rewrite <- Heqo.
+
+  unfold select' in H. simpl in H.
+
+
+auto.
+ in H.
+  rewrite 
+
+
+  destruct H.
+  compute in H.
+  rewrite 
+  
+  crush.
+
+  inversion H1.
+
+  inversion H.
   remember H as H'. clear HeqH'.
   inversion H.
   destruct (select' rel pred) eqn:?. (* eqn:? preserves the matched r'' relational *)
