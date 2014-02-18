@@ -172,6 +172,28 @@ end.
 
 
 
+
+
+(* this appears to be less straight forward to convert to non-tail calls, but I think
+it is possible if we rely on monotonic query processing *)
+
+Lemma projectCons : forall r n t t' r', runQuery (Project n) r = Some r' ->
+  projectTuple t n = Some t' ->
+  runQuery (Project n) (RCons t r) = Some (RCons t' r').
+  
+  intros.
+  simpl in H.
+  simpl. 
+  destruct projectTuple.
+  destruct project.
+  inversion H0.
+  inversion H.
+  reflexivity.
+  discriminate.
+  discriminate.
+Qed.
+
+
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
