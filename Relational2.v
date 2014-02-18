@@ -47,7 +47,7 @@ Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
                 | BTrue => Some inputRelation
                 | BFalse => Some RNil
                 end 
-  | Project index => project inputRelation index (Some RNil)
+  | Project index => project inputRelation index
   end.
 
 Inductive VarName : Set :=
