@@ -143,6 +143,8 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
   | ForAll _ _ _ => None
   end.
 
+
+
 (* It turns out that we do not (and should not) have
    runImpSmall (small step semantics). Because otherwise
    Coq cannot figure out that our function is structurally
@@ -153,9 +155,22 @@ Definition runImp (p : ImpProgram) (input : relation) : option relation :=
   let fix helper (p : ImpProgram) (result: option relation) : option relation := 
     match p with
     | Skip => result
-    | Seq s p' => helper p' (runStatement s input RNil RNil)
+    | Seq s p' => helper p' (runStatement s input nil nil)
     end
-  in helper p (Some RNil).
+  in helper p (Some nil).
+
+
+
+
+Eval compute in let p := queryToImp (Project 0) in
+                        match p with 
+                          | None => None
+                          | Some p' => runImp p' ((TCons 1 TNil) :: (TCons 2 TNil) :: nil)
+end.
+
+
+
+
 
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
