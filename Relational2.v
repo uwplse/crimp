@@ -26,25 +26,28 @@ Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
                    end
   end.
 
+Fixpoint project (input: relation) (index: nat) :=
+      match input with
+      | RNil => Some RNil
+      | RCons tup rem => match (projectTuple tup index) with
+                            | None => None
+                            | Some tup' => let remres := project rem index in
+                               match remres with 
+                                 | None => None
+                                 | Some remres' => Some (RCons tup' remres')       
+                               end
+                         end
+      end.
+
+Eval simpl in project (RCons (TCons 1 TNil) (RCons (TCons 2 TNil) RNil)) 0.
+
 Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
   match q with 
   | Select b => match b with 
                 | BTrue => Some inputRelation
                 | BFalse => Some RNil
                 end 
-  | Project index => 
-    let fix project (input: relation) (index: nat) (result: option relation) :=
-      match input with
-      | RNil => result
-      | RCons tup rem => match result with
-                         | None => None
-                         | Some resultRel => match (projectTuple tup index) with
-                                             | None => None
-                                             | Some tup' => project rem index (Some (RCons tup' resultRel))
-                                             end
-                         end
-      end
-    in project inputRelation index (Some RNil)
+  | Project index => project inputRelation index (Some RNil)
   end.
 
 Inductive VarName : Set :=
