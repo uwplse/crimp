@@ -5,9 +5,9 @@ Inductive tuple : Set :=
   | TCons : nat -> tuple -> tuple
   | TNil : tuple.
 
-Inductive relation : Set :=
-  | RCons : tuple -> relation -> relation
-  | RNil : relation.
+
+Definition relation : Set :=
+  list tuple.
 
 Inductive Bool : Set :=
   | BTrue : Bool
@@ -28,24 +28,24 @@ Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
 
 Fixpoint project (input: relation) (index: nat) :=
       match input with
-      | RNil => Some RNil
-      | RCons tup rem => match (projectTuple tup index) with
+      | nil => Some nil
+      | tup :: rem => match (projectTuple tup index) with
                             | None => None
                             | Some tup' => let remres := project rem index in
                                match remres with 
                                  | None => None
-                                 | Some remres' => Some (RCons tup' remres')       
+                                 | Some remres' => Some (tup' :: remres')       
                                end
                          end
       end.
 
-Eval simpl in project (RCons (TCons 1 TNil) (RCons (TCons 2 TNil) RNil)) 0.
+Eval simpl in project ((TCons 1 TNil) :: (TCons 2 TNil) :: nil) 0.
 
 Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
   match q with 
   | Select b => match b with 
                 | BTrue => Some inputRelation
-                | BFalse => Some RNil
+                | BFalse => Some nil
                 end 
   | Project index => project inputRelation index
   end.
@@ -75,11 +75,11 @@ Definition queryToImp (q : Query) : option ImpProgram :=
   match q with
   | Select b => match b with
                 | BTrue => Some (Seq (Assign ResultName InputRelation) Skip) 
-                | BFalse => Some (Seq (Assign ResultName (RelationExp RNil)) Skip)   
+                | BFalse => Some (Seq (Assign ResultName (RelationExp nil)) Skip)   
                 end
   | Project index => Some 
                      (Seq 
-                      (Assign ResultName (RelationExp RNil))
+                      (Assign ResultName (RelationExp nil))
                       (Seq
                         (ForAll (IndexedVarName 0) InputRelation
                           (AppendTuple ResultName (ProjectTuple (NatExp index) (IndexedVarName 0))))
@@ -89,8 +89,8 @@ Definition queryToImp (q : Query) : option ImpProgram :=
 
 Fixpoint tupleHeapLookup (heap: relation) (index: nat) : option tuple :=
   match heap with
-  | RNil => None
-  | RCons t rem => match index with
+  | nil => None
+  | t ::rem => match index with
                    | 0 => Some t
                    | S index' => tupleHeapLookup rem index'
                    end
@@ -98,13 +98,13 @@ Fixpoint tupleHeapLookup (heap: relation) (index: nat) : option tuple :=
 
 Fixpoint updateTupleHeap (heap: relation) (index: nat) (t: tuple) : relation :=
   match heap with
-  | RNil => match index with
-            | 0 => RCons t RNil
-            | S index' => RCons (TCons 0 TNil) (updateTupleHeap heap index' t)
+  | nil => match index with
+            | 0 => t :: nil
+            | S index' => (TCons 0 TNil) :: (updateTupleHeap heap index' t)
             end
-  | RCons tup rem => match index with
-                     | 0 => RCons t rem
-                     | S index' => RCons tup (updateTupleHeap rem index' t)
+  | tup :: rem => match index with
+                     | 0 => t :: rem
+                     | S index' => tup :: (updateTupleHeap rem index' t)
                      end
   end.
 
@@ -122,7 +122,7 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
           match tupleHeapLookup heap vnIndex with
           | Some tuple' => 
               match projectTuple tuple' index with
-              | Some t' => Some (RCons t' result)
+              | Some t' => Some (result ++ (t' :: nil))
               | None => None
               end
           | None => None
@@ -135,8 +135,8 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
         match res with
         | None => None
         | Some res' => match rel with
-                      | RNil => res
-                      | RCons t rem => helper rem (runStatement s' input (updateTupleHeap heap index t) res')
+                      | nil => res
+                      | t :: rem => helper rem (runStatement s' input (updateTupleHeap heap index t) res')
                       end
         end
       in helper input (Some result)
