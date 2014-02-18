@@ -41,32 +41,53 @@ Definition queryToImp (q : Query) : option ImpProgram :=
                  end
   end.
 
-Definition runImp (p : ImpProgram) (r : relation) : option relation :=
- let fix helper (p : ImpProgram) (result : relation) : ImpProgram * relation := 
+Fixpoint runImp (p : ImpProgram) (r : relation) (result : relation) : ImpProgram * (option relation) := 
   match p with
-   | Seq p1 p2 => match p1 with
-                    | Skip => (p2, result) 
-                    | _ => let (p1', result') := helper p1 result in
-                      (Seq p1' p2, result')
-                  end
+   | Seq Skip p2 => (p2, Some result)
+   | Seq p1 p2 => let (p1', oresult') := runImp p1 r result in
+                      match oresult' with
+                        | Some result' => runImp (Seq p1' p2) r result'  (* this seq built up *)
+                        | None => (Skip, None)
+                      end
    | Assign vn e => match vn with
                      | ResultName => match e with
-                                       | InputRelation => (Skip, r)
-                                       | RelationExp rexp => (Skip, rexp) 
+                                       | InputRelation => (Skip, Some r)
+                                       | RelationExp rexp => (Skip, Some rexp) 
                                      end
                     end
-   | Skip => (Skip, result)
-  end
-  in 
-  let (_, result ) := helper p Rnil in
-    Some result.
+   | Skip => (Skip, Some result)
+  end.
 
 
 
 Theorem queryEquivalence : forall (q : Query) (p : ImpProgram),
                               queryToImp q = Some p ->
                                  forall (r r' : relation), runQuery q r = Some r' ->
-                                                           runImp p r = Some r'.                intros.
+                                                           exists p', runImp p r Rnil = (p', Some r').
+  intros.
+  exists Skip.
+  induction p.
+  unfold queryToImp in H.
+  destruct q in H.
+  destruct b in H.
+  inversion H.
+  unfol
+  
+  
+ (* Assign case *)
+  unfold queryToImp in H.
+  destruct q in H.
+  destruct b in H.
+  discriminate H.
+  
+ (* skip case *)
+  unfold queryToImp in H.
+  destruct q in H.
+  destruct b in H.
+  discriminate H.
+  
+   
+             intros.
  induction p.
  unfold runImp in 
  
