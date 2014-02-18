@@ -4,7 +4,7 @@
     the RA. For select it seems like this will allow us
     to write proofs that the impExecute(impDenote ra) = raExecute ra. impDenote will be like the datalogcompiler code
 
-    First we would like to skip the denotation process
+    First we would like to skip the pseudo-denotation process
     and just write a single operator alone: that selectRA = selectImp. This means
     our select Imp will have an apply-pred operation. Then to
     support other query plans we will add denotation.
@@ -118,3 +118,27 @@ Fixpoint impExecuteStep (h : heap) (s : Statement) : heap * Statement :=
                               (h', Seq s' (Forall vn rem s'))  
                         end
     end.
+
+
+
+(* steps 
+
+choose simplest query
+define Query
+define semantics separately
+
+define IMP-
+define semantics separately
+
+prove equivalance of semantics(RA)=semantics(IMP query)
+
+update compile
+
+
+queries:
+true
+false
+project
+select(t.0) where tuple vals are boolean
+...
+*)
