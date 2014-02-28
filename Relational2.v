@@ -193,7 +193,52 @@ Lemma projectCons : forall r n t t' r', runQuery (Project n) r = Some r' ->
   discriminate.
   discriminate.
 Qed.
+ 
 
+Lemma lookupOfUpdate : forall t, tupleHeapLookup (updateTupleHeap nil 0 t) 0 = Some t.
+  intros.
+  crush.
+Qed.
+
+  
+Lemma projectConsImp : forall r n t t' r' p, queryToImp (Project n) = Some p -> 
+                                runImp p r = Some r' ->
+                                projectTuple t n = Some t' ->
+                                runImp p (t :: r) = Some (t' :: r').
+  intros.
+  destruct p.
+  inversion H.
+  unfold runImp.
+  unfold runStatement.
+  rewrite lookupOfUpdate.
+  simpl.
+  (*destruct (projectTuple tuple' n).*)
+Abort.
+  
+(* appears that matching in opposite order of arguments is hurtful 
+   swapped runStatement rel and res to match order. I guess partial application isn't possible? But what about equality chapter? *)  
+
+(* this theorem is harder because it is equal output in all cases, but
+for the short term it fixes the stuck point with r' in queryEquivalence *)
+Theorem queryEquivalence': 
+  forall (q : Query) (p : ImpProgram),
+    queryToImp q = Some p ->
+      forall (r : relation), runQuery q r = runImp p r.
+
+  intros.
+  induction q.
+  destruct b; simpl in H; inversion H; crush.
+  inversion H.
+  induction r. crush.
+  
+  unfold runQuery.
+  
+  
+  inversion H.
+  unfold runImp.
+  unfold runStatement. 
+  destruct (tupleHeapLookup (updateTupleHeap nil 0 a) 0).
+  destruct (projectTuple t0 n).
 
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
@@ -202,18 +247,67 @@ Theorem queryEquivalence:
         runImp p r = Some r'.
 Proof.
     intros.
+    induction q.
+    (* select cases *)
+    destruct b;
+    simpl in H; inversion H; crush.
+
+    (* project *)
+    induction r. crush.
+(* At this point we need to ask how to introduce r'' inductive hyothesis instead *)
+    
+
+
+destruct r. crush. simpl in H0. 
+    unfold runImp. unfold runStatement.
+
     induction p.
     destruct q.
     
+
     (* Select TRUE and Select FALSE *)
     destruct b;
     simpl in H; inversion H; clear H; clear H2; clear H3;
-    simpl in H0;
-    
     compute;
     assumption.
     
     (* Project <index> *)
+    
+    simpl in H; inversion H.
+induction r. crush. 
+unfold runImp.
+unfold runStatement. 
+destruct (tupleHeapLookup (updateTupleHeap nil 0 a) 0).
+destruct (projectTuple t n). simpl. 
+
+rewrite <- H3 in IHp.
+ 
+unfold runQuery in H0.
+unfold project in H0. 
+unfold runImp.
+unfold runStatement. 
+
+    
+    induction r. 
+    unfold runImp. simpl in H0. destruct (projectTuple t n) eqn:?. 
+    
+        (* r = RCons t r  case *)
+    admit.
+        (* r = Rnil case *)
+        crush.
+   
+(*
+    simpl in H0.
+    inversion H0.
+    simpl in H. inversion H.
+    clear H4. clear H3. clear H2.
+    compute.
+    intros.
+*)
+
+    simpl in H0.
+    
+
     simpl in H0. inversion H0.
 
     simpl in H0. inversion H0. compute in H2. simpl in H2.
@@ -221,8 +315,18 @@ Proof.
     simpl in H. inversion H. clear H. simpl in H0. inversion H0. clear H0. simpl H1.
 
 
-    induction p;
-    
+    induction p. admit. admit.
+
+
+(* p = Skip  *)    
+destruct q. 
+(* q = Select *)
+destruct b. simpl in H. inversion H. clear H. simpl in H0. inversion H0. compute. reflexivity.
+(* q = Project *)
+crush.
+
+Qed.
+
     (* P = Seq s p AND Skip*)
     destruct q;
     (* Query = SELECT *)
