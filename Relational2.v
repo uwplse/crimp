@@ -58,14 +58,13 @@ Inductive Exp : Set :=
   | InputRelation : Exp
   | RelationExp : relation -> Exp
 (*  | TupleExp : tuple -> Exp *)
-  | NatExp : nat -> Exp
-  | ProjectTuple : Exp -> VarName -> Exp.
+  | NatExp : nat -> Exp.
 
 (* It turns out that Forall is already defined in Coq, so I used ForAll *)
 Inductive Statement : Set :=
   | Assign : VarName -> Exp -> Statement
-  | AppendTuple: VarName -> Exp -> Statement
-  | ForAll : VarName -> Exp -> Statement -> Statement.
+  | ForAll : VarName -> Statement -> Statement
+  | ProjectTuple : Exp -> VarName -> Statement.
 
 Inductive ImpProgram : Set :=
   | Seq : Statement -> ImpProgram -> ImpProgram
@@ -81,34 +80,13 @@ Definition queryToImp (q : Query) : option ImpProgram :=
                      (Seq 
                       (Assign ResultName (RelationExp nil))
                       (Seq
-                        (ForAll (IndexedVarName 0) InputRelation
-                          (AppendTuple ResultName (ProjectTuple (NatExp index) (IndexedVarName 0))))
+                        (ForAll (IndexedVarName 0)
+                          (ProjectTuple (NatExp index) (IndexedVarName 0)))
                         Skip))
                         
   end.
 
-Fixpoint tupleHeapLookup (heap: relation) (index: nat) : option tuple :=
-  match heap with
-  | nil => None
-  | t ::rem => match index with
-                   | 0 => Some t
-                   | S index' => tupleHeapLookup rem index'
-                   end
-  end.
-
-Fixpoint updateTupleHeap (heap: relation) (index: nat) (t: tuple) : relation :=
-  match heap with
-  | nil => match index with
-            | 0 => t :: nil
-            | S index' => (TCons 0 TNil) :: (updateTupleHeap heap index' t)
-            end
-  | tup :: rem => match index with
-                     | 0 => t :: rem
-                     | S index' => tup :: (updateTupleHeap rem index' t)
-                     end
-  end.
-
-Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) : option relation :=
+Fixpoint runStatement (s: Statement) (input: relation) (heap: tuple) : option relation :=
   match s with
   | Assign ResultName e => match e with
                            | InputRelation => Some input
@@ -116,21 +94,18 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) : option
                            | _ => None
                            end
   | Assign _ _ => None
-  | AppendTuple ResultName (ProjectTuple (NatExp index) (IndexedVarName vnIndex)) =>
-          match tupleHeapLookup heap vnIndex with
-          | Some tuple' => match projectTuple tuple' index with
-                           | Some tup => Some (tup :: nil)
-                           | None => None
-                           end
+  | ProjectTuple (NatExp index) (IndexedVarName vnIndex) =>
+          match projectTuple heap index with
+          | Some tup => Some (tup :: nil)
           | None => None
           end
-  | AppendTuple _ _ => None
-  | ForAll (IndexedVarName index) InputRelation  s' =>
+  | ProjectTuple _ _ => None
+  | ForAll (IndexedVarName index)  s' =>
       let fix helper (rel: relation) :=
         match rel with
         | nil => Some nil
         | t :: rem => 
-          match (runStatement s' input (updateTupleHeap heap index t)) with
+          match (runStatement s' input t) with
           | None => None
           | Some res => match (helper rem) with
                         | Some rem' => Some (res ++ rem')
@@ -139,7 +114,7 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) : option
           end
         end
       in helper input
-  | ForAll _ _ _ => None
+  | ForAll _ _ => None
   end.
 
 
@@ -154,7 +129,7 @@ Definition runImp (p : ImpProgram) (input : relation) : option relation :=
   let fix helper (p : ImpProgram) (result: relation) : option relation := 
     match p with
     | Skip => Some result
-    | Seq s p' => match (runStatement s input nil) with
+    | Seq s p' => match (runStatement s input TNil) with
                     | Some res => helper p' (result ++ res)
                     | None => None
                   end
@@ -164,7 +139,7 @@ Definition runImp (p : ImpProgram) (input : relation) : option relation :=
 Fixpoint runImp' (p: ImpProgram) (input: relation) : option relation :=
   match p with
     | Skip => Some nil
-    | Seq s p' => match (runStatement s input nil) with
+    | Seq s p' => match (runStatement s input TNil) with
                     | Some res => match runImp' p' input with
                                     | Some remres => Some (res ++ remres)
                                     | None => None
