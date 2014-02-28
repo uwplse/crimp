@@ -180,7 +180,7 @@ it is possible if we rely on monotonic query processing *)
 
 Lemma projectCons : forall r n t t' r', runQuery (Project n) r = Some r' ->
   projectTuple t n = Some t' ->
-  runQuery (Project n) (RCons t r) = Some (RCons t' r').
+  runQuery (Project n) (t :: r) = Some (t' :: r').
   
   intros.
   simpl in H.
