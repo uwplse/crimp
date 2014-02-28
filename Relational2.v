@@ -156,50 +156,9 @@ Eval compute in let p := queryToImp (Project 1) in
 end.
 
 
-
-
-
-
-
 (* this appears to be less straight forward to convert to non-tail calls, but I think
 it is possible if we rely on monotonic query processing *)
 
-Lemma projectCons : forall r n t t' r', runQuery (Project n) r = Some r' ->
-  projectTuple t n = Some t' ->
-  runQuery (Project n) (t :: r) = Some (t' :: r').
-  
-  intros.
-  simpl in H.
-  simpl. 
-  destruct projectTuple.
-  destruct project.
-  inversion H0.
-  inversion H.
-  reflexivity.
-  discriminate.
-  discriminate.
-Qed.
- 
-
-Lemma lookupOfUpdate : forall t, tupleHeapLookup (updateTupleHeap nil 0 t) 0 = Some t.
-  intros.
-  crush.
-Qed.
-
-  
-Lemma projectConsImp : forall r n t t' r' p, queryToImp (Project n) = Some p -> 
-                                runImp p r = Some r' ->
-                                projectTuple t n = Some t' ->
-                                runImp p (t :: r) = Some (t' :: r').
-  intros.
-  destruct p.
-  inversion H.
-  unfold runImp.
-  unfold runStatement.
-  rewrite lookupOfUpdate.
-  simpl.
-  (*destruct (projectTuple tuple' n).*)
-Abort.
   
 (* appears that matching in opposite order of arguments is hurtful 
    swapped runStatement rel and res to match order. I guess partial application isn't possible? But what about equality chapter? *)  
@@ -238,7 +197,15 @@ Theorem queryEquivalence'':
       forall (r r' : relation), runQuery q r = Some r' ->
         runImp' p r = Some r'.
   induction q.
-  admit.
+  (* select cases *)
+  intros; destruct b; crush; f_equal; crush.
+
+  intros p Hc. inv Hc. 
+
+  induction r. simpl. crush.
+  intros.
+  simpl. repeat break_match. inv Heqo1. inv Heqo2. inv Heqo0. f_equal.
+  unfold runQuery in H. unfold project in H. rewrite Heqo3 in H. break_match. inv H. inv Heqo. f_equal. Print runQuery. 
 
   intros p Hc.
   inv Hc.
