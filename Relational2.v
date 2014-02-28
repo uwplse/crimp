@@ -131,15 +131,16 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
       end
   | AppendTuple _ _ => None
   | ForAll (IndexedVarName index) InputRelation  s' =>
-      let fix helper (rel: relation) (res: option relation) :=
+      let fix helper (res: option relation) (rel: relation) :=
         match res with
         | None => None
         | Some res' => match rel with
                       | nil => res
-                      | t :: rem => helper rem (runStatement s' input (updateTupleHeap heap index t) res')
+                      | t :: rem => helper (runStatement s' input (updateTupleHeap heap index t) res') rem
+
                       end
         end
-      in helper input (Some result)
+      in helper (Some result) input
   | ForAll _ _ _ => None
   end.
 
