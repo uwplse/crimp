@@ -108,7 +108,7 @@ Fixpoint updateTupleHeap (heap: relation) (index: nat) (t: tuple) : relation :=
                      end
   end.
 
-Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result: relation) : option relation :=
+Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) : option relation :=
   match s with
   | Assign ResultName e => match e with
                            | InputRelation => Some input
@@ -116,31 +116,29 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
                            | _ => None
                            end
   | Assign _ _ => None
-  | AppendTuple ResultName e => 
-      match e with
-      | ProjectTuple (NatExp index) (IndexedVarName vnIndex) =>
+  | AppendTuple ResultName (ProjectTuple (NatExp index) (IndexedVarName vnIndex)) =>
           match tupleHeapLookup heap vnIndex with
-          | Some tuple' => 
-              match projectTuple tuple' index with
-              | Some t' => Some (result ++ (t' :: nil))
-              | None => None
-              end
+          | Some tuple' => match projectTuple tuple' index with
+                           | Some tup => Some (tup :: nil)
+                           | None => None
+                           end
           | None => None
           end
-      | _ => None
-      end
   | AppendTuple _ _ => None
   | ForAll (IndexedVarName index) InputRelation  s' =>
-      let fix helper (res: option relation) (rel: relation) :=
-        match res with
-        | None => None
-        | Some res' => match rel with
-                      | nil => res
-                      | t :: rem => helper (runStatement s' input (updateTupleHeap heap index t) res') rem
-
-                      end
+      let fix helper (rel: relation) :=
+        match rel with
+        | nil => Some nil
+        | t :: rem => 
+          match (runStatement s' input (updateTupleHeap heap index t)) with
+          | None => None
+          | Some res => match (helper rem) with
+                        | Some rem' => Some (res ++ rem')
+                        | None => None
+                        end
+          end
         end
-      in helper (Some result) input
+      in helper input
   | ForAll _ _ _ => None
   end.
 
@@ -153,20 +151,23 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: relation) (result:
    Tatlock.
 *)
 Definition runImp (p : ImpProgram) (input : relation) : option relation :=
-  let fix helper (p : ImpProgram) (result: option relation) : option relation := 
+  let fix helper (p : ImpProgram) (result: relation) : option relation := 
     match p with
-    | Skip => result
-    | Seq s p' => helper p' (runStatement s input nil nil)
+    | Skip => Some result
+    | Seq s p' => match (runStatement s input nil) with
+                    | Some res => helper p' res
+                    | None => None
+                  end
     end
-  in helper p (Some nil).
+  in helper p nil.
 
 
 
 
-Eval compute in let p := queryToImp (Project 0) in
+Eval compute in let p := queryToImp (Project 1) in
                         match p with 
                           | None => None
-                          | Some p' => runImp p' ((TCons 1 TNil) :: (TCons 2 TNil) :: nil)
+                          | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
 end.
 
 
@@ -231,14 +232,19 @@ Theorem queryEquivalence':
   inversion H.
   induction r. crush.
   
-  unfold runQuery.
-  
-  
-  inversion H.
-  unfold runImp.
-  unfold runStatement. 
-  destruct (tupleHeapLookup (updateTupleHeap nil 0 a) 0).
-  destruct (projectTuple t0 n).
+clear H1.
+clear H.
+unfold runQuery.
+unfold project.
+assert (runQuery (Project n) r = project r n). 
+admit. (* admit the thing we asserted *)
+fold project.
+rewrite <- H. 
+destruct (projectTuple a n).
+rewrite IHr. 
+
+
+
 
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
