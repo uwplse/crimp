@@ -1,4 +1,4 @@
-Require Import Bool Arith List CpdtTactics.
+Require Import Bool Arith List CpdtTactics CorgiTactics.
 Set Implicit Arguments.
 
 Inductive tuple : Set :=
@@ -155,13 +155,23 @@ Definition runImp (p : ImpProgram) (input : relation) : option relation :=
     match p with
     | Skip => Some result
     | Seq s p' => match (runStatement s input nil) with
-                    | Some res => helper p' res
+                    | Some res => helper p' (result ++ res)
                     | None => None
                   end
     end
   in helper p nil.
 
-
+Fixpoint runImp' (p: ImpProgram) (input: relation) : option relation :=
+  match p with
+    | Skip => Some nil
+    | Seq s p' => match (runStatement s input nil) with
+                    | Some res => match runImp' p' input with
+                                    | Some remres => Some (res ++ remres)
+                                    | None => None
+                                      end
+                    | None => None
+                      end
+end.
 
 
 Eval compute in let p := queryToImp (Project 1) in
@@ -218,6 +228,7 @@ Abort.
   
 (* appears that matching in opposite order of arguments is hurtful 
    swapped runStatement rel and res to match order. I guess partial application isn't possible? But what about equality chapter? *)  
+Print Ltac crush'.
 
 (* this theorem is harder because it is equal output in all cases, but
 for the short term it fixes the stuck point with r' in queryEquivalence *)
@@ -243,8 +254,23 @@ rewrite <- H.
 destruct (projectTuple a n).
 rewrite IHr. 
 
+Ltac inv H := inversion H; subst; clear H.
+(* github, james, break match *)
 
+Theorem queryEquivalence'': 
+  forall (q : Query) (p : ImpProgram),
+    queryToImp q = Some p ->
+      forall (r r' : relation), runQuery q r = Some r' ->
+        runImp' p r = Some r'.
+  induction q.
+  admit.
 
+  intros p Hc.
+  inv Hc.
+  induction r; simpl. crush.
+  
+  intros; repeat break_match.
+  inv Heqo0. inv Heqo. f_equal.
 
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
@@ -252,14 +278,47 @@ Theorem queryEquivalence:
       forall (r r' : relation), runQuery q r = Some r' ->
         runImp p r = Some r'.
 Proof.
-    intros.
+    intros. (* tends to cause weakest induction hyp *)
     induction q.
     (* select cases *)
     destruct b;
     simpl in H; inversion H; crush.
 
     (* project *)
+    revert r' H0. inv H. simpl. 
+    induction r; crush. 
+    destruct (projectTuple a n) eqn:?.
+    destruct (project r n) eqn:?.
+    inv H0. 
+    
+
     induction r. crush.
+    intros.
+    inversion H. clear H2.
+    
+
+(* below gets the left hand side of ind hyp *)
+    unfold runImp; simpl. 
+    repeat break_match. 
+    simpl in H0.
+    repeat break_match.
+    specialize (IHr l1). simpl in IHr. apply IHr in Heqo4.
+    f_equal.
+
+    
+    inv Heqo. 
+    inv Heqo0.
+    inv Heqo2.
+    inv H0.
+  
+    unfold runImp in Heqo4. inversion H. inv H1. simpl in *.
+    f_equal. inv H0. inv H. 
+             
+
+    fold (runStatement  r) in Heqo1.
+
+Focus 2. inv Heqo. inv Heqo0. simpl. f_equal.
+    
 (* At this point we need to ask how to introduce r'' inductive hyothesis instead *)
     
 
