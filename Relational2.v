@@ -203,53 +203,68 @@ Theorem queryEquivalence'':
   intros p Hc. inv Hc. 
 
   induction r. simpl. crush.
-  intros.
-  simpl. repeat break_match. inv Heqo1. inv Heqo2. inv Heqo0. f_equal.
-  unfold runQuery in H. unfold project in H. rewrite Heqo3 in H. break_match. inv H. inv Heqo. f_equal. fold project in Heqo0. fold (runQuery (Project n) r) in Heqo0. specialize IHr with l. apply IHr in Heqo0.
+  intros. 
+unfold runImp'.
 
-  unfold runImp' in Heqo0.
-  repeat break_match.
-  inv Heqo0. inv Heqo1. inv Heqo. crush. crush. crush.
-  crush. crush. crush. crush. crush. crush. crush.
-  crush. crush. crush. crush. crush. crush. crush.
-  crush. crush. crush. crush. crush. crush. crush.
-  crush.
+break_match; try discriminate.
+break_match. (* discriminate not work on 2nd subgoal *) 
+break_match; try discriminate.
+f_equal.
+inv Heqo0.
 
-  (* now shitty none cases *)
-  clear Heqo0. clear Heqo.
-  unfold runQuery in H.
-  unfold project in H. repeat break_match.
-  inv Heqo3. inv Heqo1.
-  fold project in Heqo0.
-  fold (runQuery (Project n) r) in Heqo0.
-  specialize IHr with l.
-  apply IHr in Heqo0.
-  unfold runImp' in Heqo0.
-  repeat break_match.
-  inv Heqo3.  inv Heqo0. inv H. 
-  crush. discriminate. discriminate. discriminate. discriminate.
-  discriminate.
-  discriminate.
-  discriminate.
-  discriminate.
-  
-  (* now one more None case *)
-  clear Heqo1 Heqo0 Heqo.
-  unfold runQuery in H.
-  unfold project in H.
-  rewrite Heqo2 in H.
-  discriminate.
+unfold runQuery in H.
+unfold project in H.
+break_match; try discriminate.
+break_match; try discriminate.
+inv H.
+fold project in Heqo2.
+fold (runQuery (Project n) r) in Heqo2.
+
+apply IHr in Heqo2.       (* apply is smart, no need to specialize IHr's r'*)
+unfold runImp' in Heqo2.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+inv Heqo4. inv Heqo2.
+
+(* imp side *)
+unfold runStatement in Heqo1.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+crush.
+
+break_match; try discriminate.
+clear Heqo0.
+unfold runStatement in Heqo1.
+break_match.  (* discriminate not work on 2nd subgoal *)
+break_match; try discriminate.
+break_match; try discriminate.
+inv Heqo0. clear Heqo1. 
+unfold runStatement in Heqo.
+inv Heqo.
+unfold runQuery in H.
+unfold project in H.
+break_match; try discriminate.
+break_match; try discriminate.
+inv Heqo3.
+fold project in Heqo0.
+unfold runQuery in IHr. (* here we unify by unfolding instead of folding Heqo0 which is neater *)
+apply IHr in Heqo0.
+unfold runImp' in Heqo0.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+crush.
+
+break_match; try discriminate.
+clear Heqo0 Heqo1.
+unfold runQuery in H.
+unfold project in H.
+break_match; discriminate.
 Qed.
-  
 
-   Print runQuery. 
 
-  intros p Hc.
-  inv Hc.
-  induction r; simpl. crush.
-  
-  intros; repeat break_match.
-  inv Heqo0. inv Heqo. f_equal.
 
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
