@@ -198,6 +198,8 @@ Theorem queryEquivalence'':
         runImp' p r = Some r'. Print Ltac break_match.
   
 
+(* alternative to this detailed of automation, is figure out what the facts
+we get out of unfold->break_match->fold are and extract into lemmas *)
   induction q; [
     (* select cases *) 
     intros; destruct b; crush; f_equal; crush
