@@ -263,7 +263,12 @@ unfold runQuery in H.
 unfold project in H.
 break_match; discriminate.
 Qed.
-
+(* TODO list:
+- add SelectTuple (then can unify by bringing back AppendTuple)
+- Ltac for unfolding and break matching
+- Ltac for break_match; try discr and/or repeat
+- try to remove duplication in proof
+*)
 
 
 Theorem queryEquivalence: 
