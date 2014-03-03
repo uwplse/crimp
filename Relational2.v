@@ -205,7 +205,44 @@ Theorem queryEquivalence'':
   induction r. simpl. crush.
   intros.
   simpl. repeat break_match. inv Heqo1. inv Heqo2. inv Heqo0. f_equal.
-  unfold runQuery in H. unfold project in H. rewrite Heqo3 in H. break_match. inv H. inv Heqo. f_equal. Print runQuery. 
+  unfold runQuery in H. unfold project in H. rewrite Heqo3 in H. break_match. inv H. inv Heqo. f_equal. fold project in Heqo0. fold (runQuery (Project n) r) in Heqo0. specialize IHr with l. apply IHr in Heqo0.
+
+  unfold runImp' in Heqo0.
+  repeat break_match.
+  inv Heqo0. inv Heqo1. inv Heqo. crush. crush. crush.
+  crush. crush. crush. crush. crush. crush. crush.
+  crush. crush. crush. crush. crush. crush. crush.
+  crush. crush. crush. crush. crush. crush. crush.
+  crush.
+
+  (* now shitty none cases *)
+  clear Heqo0. clear Heqo.
+  unfold runQuery in H.
+  unfold project in H. repeat break_match.
+  inv Heqo3. inv Heqo1.
+  fold project in Heqo0.
+  fold (runQuery (Project n) r) in Heqo0.
+  specialize IHr with l.
+  apply IHr in Heqo0.
+  unfold runImp' in Heqo0.
+  repeat break_match.
+  inv Heqo3.  inv Heqo0. inv H. 
+  crush. discriminate. discriminate. discriminate. discriminate.
+  discriminate.
+  discriminate.
+  discriminate.
+  discriminate.
+  
+  (* now one more None case *)
+  clear Heqo1 Heqo0 Heqo.
+  unfold runQuery in H.
+  unfold project in H.
+  rewrite Heqo2 in H.
+  discriminate.
+Qed.
+  
+
+   Print runQuery. 
 
   intros p Hc.
   inv Hc.
