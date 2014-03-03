@@ -195,15 +195,34 @@ Theorem queryEquivalence'':
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
       forall (r r' : relation), runQuery q r = Some r' ->
-        runImp' p r = Some r'.
-  induction q.
-  (* select cases *)
-  intros; destruct b; crush; f_equal; crush.
+        runImp' p r = Some r'. Print Ltac break_match.
+  
 
-  intros p Hc. inv Hc. 
+  induction q; [
+    (* select cases *) 
+    intros; destruct b; crush; f_equal; crush
+    (* Project case *)
+   | intros p Hc; inv Hc; induction r; [
+      crush  (* base case *) 
+      | intros; [repeat match goal with 
+                  | [ |- runImp' _ _ = _ ] => unfold runImp'; [repeat break_match; try discriminate]
+                  | [H: runImp' _ _ = _ |- _ ] => unfold runImp' in H; [repeat break_match; try discriminate]
+                  | [H: runQuery _ _ = _ |- _ ] => unfold runQuery in H; 
+                                                   match goal with 
+                                                     | H: project _ _ = _ |- _ => unfold project in H
+                                                   end; [repeat break_match; try discriminate]
+                  | [H: runStatement _ _ _ = _ |- _ ] => unfold runStatement; [repeat break_match; try discriminate]
+               end]]].
 
-  induction r. simpl. crush.
-  intros. 
+Restart.
+induction q.
+intros; destruct b; crush; f_equal; crush.
+
+intros p Hc; inv Hc.
+induction r. crush. 
+
+  intros.
+
 unfold runImp'.
 
 break_match; try discriminate.
@@ -215,7 +234,7 @@ inv Heqo0.
 unfold runQuery in H.
 unfold project in H.
 break_match; try discriminate.
-break_match; try discriminate.
+break_match; try discriminate. 
 inv H.
 fold project in Heqo2.
 fold (runQuery (Project n) r) in Heqo2.
