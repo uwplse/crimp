@@ -386,7 +386,7 @@ break_match; try discriminate.
 clear Heqo1.
 unfold runQuery in H. simpl in H. inversion H. clear H.
 unfold runQuery in IHr.
-assert (Some (select BFalse r) = Some r'). crush. 
+assert (Some (select BFalse r) = Some r'). crush.  
 rewrite H1. clear H1.
 apply IHr in H. clear IHr.
 unfold runImp' in H.
@@ -400,8 +400,8 @@ unfold runStatement in Heqo0. inv Heqo0.
 unfold runStatement in Heqo2. rewrite Heqo in Heqo2. clear Heqo. inv Heqo2.
 *)
 Qed.
-(* TODO list:
-- add SelectTuple (then can unify by bringing back AppendTuple)
+(* wish list:
+- unify ProjectTuple and SelectTuple by bringing back AppendTuple
 - Ltac for unfolding and break matching
 - Ltac for break_match; try discr and/or repeat
 - try to remove duplication in proof
