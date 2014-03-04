@@ -15,7 +15,8 @@ Inductive Bool : Set :=
 
 Inductive Query : Set := 
   | Select : Bool -> Query
-  | Project : nat -> Query. 
+  | Project : nat -> Query
+  | SelectIf : Bool -> Query. (* currently as expressive only as Select *) 
 
 Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
   match t with
@@ -39,6 +40,27 @@ Fixpoint project (input: relation) (index: nat) :=
                          end
       end.
 
+Fixpoint select (b: Bool)  (input: relation) :=
+  match b with
+    | BTrue => match input with
+                   | nil => nil
+                   | tup :: rem => tup :: (select b rem)
+               end
+    | BFalse => match input with
+                  | nil => nil
+                  | _ :: rem => select b rem
+                end
+    end.
+(*
+match input with
+    | nil => nil
+    | tup :: rem => match b with
+                      | BTrue => tup :: (select rem b)
+                      | BFalse => select rem b
+                    end
+    end.
+*)
+
 Eval simpl in project ((TCons 1 TNil) :: (TCons 2 TNil) :: nil) 0.
 
 Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
@@ -46,7 +68,8 @@ Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
   | Select b => match b with 
                 | BTrue => Some inputRelation
                 | BFalse => Some nil
-                end 
+                end
+  | SelectIf b => Some (select b inputRelation)
   | Project index => project inputRelation index
   end.
 
@@ -58,13 +81,15 @@ Inductive Exp : Set :=
   | InputRelation : Exp
   | RelationExp : relation -> Exp
 (*  | TupleExp : tuple -> Exp *)
-  | NatExp : nat -> Exp.
+  | NatExp : nat -> Exp
+  | BoolExp : Bool -> Exp.
 
 (* It turns out that Forall is already defined in Coq, so I used ForAll *)
 Inductive Statement : Set :=
   | Assign : VarName -> Exp -> Statement
   | ForAll : VarName -> Statement -> Statement
-  | ProjectTuple : Exp -> VarName -> Statement.
+  | ProjectTuple : Exp -> VarName -> Statement
+  | SelectTuple : Exp -> VarName -> Statement.
 
 Inductive ImpProgram : Set :=
   | Seq : Statement -> ImpProgram -> ImpProgram
@@ -83,9 +108,17 @@ Definition queryToImp (q : Query) : option ImpProgram :=
                         (ForAll (IndexedVarName 0)
                           (ProjectTuple (NatExp index) (IndexedVarName 0)))
                         Skip))
+  | SelectIf b => Some 
+                     (Seq 
+                      (Assign ResultName (RelationExp nil))
+                      (Seq
+                        (ForAll (IndexedVarName 0)
+                          (SelectTuple (BoolExp b) (IndexedVarName 0)))
+                        Skip))
                         
   end.
 
+(* heap is a tuple *)
 Fixpoint runStatement (s: Statement) (input: relation) (heap: tuple) : option relation :=
   match s with
   | Assign ResultName e => match e with
@@ -100,6 +133,12 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: tuple) : option re
           | None => None
           end
   | ProjectTuple _ _ => None
+  | SelectTuple (BoolExp b) (IndexedVarName vnIndex) =>
+      match b with
+         | BTrue => Some (heap :: nil)
+         | BFalse => Some nil
+      end
+  | SelectTuple _ _ => None
   | ForAll (IndexedVarName index)  s' =>
       let fix helper (rel: relation) :=
         match rel with
@@ -164,32 +203,25 @@ it is possible if we rely on monotonic query processing *)
    swapped runStatement rel and res to match order. I guess partial application isn't possible? But what about equality chapter? *)  
 Print Ltac crush'.
 
-(* this theorem is harder because it is equal output in all cases, but
-for the short term it fixes the stuck point with r' in queryEquivalence *)
-Theorem queryEquivalence': 
-  forall (q : Query) (p : ImpProgram),
-    queryToImp q = Some p ->
-      forall (r : relation), runQuery q r = runImp p r.
-
-  intros.
-  induction q.
-  destruct b; simpl in H; inversion H; crush.
-  inversion H.
-  induction r. crush.
-  
-clear H1.
-clear H.
-unfold runQuery.
-unfold project.
-assert (runQuery (Project n) r = project r n). 
-admit. (* admit the thing we asserted *)
-fold project.
-rewrite <- H. 
-destruct (projectTuple a n).
-rewrite IHr. 
-
 Ltac inv H := inversion H; subst; clear H.
 (* github, james, break match *)
+
+(*
+Lemma matching': forall a r r' r'', a :: (select BTrue r) = r' -> a :: r'' = r' /\ r'' = (select BTrue r). Abort. 
+
+Lemma matching: forall a r r' r'', a :: r'' = r' /\ r'' = (select BTrue r) -> a :: (select BTrue r) = r'. crush.
+Qed.
+*)
+
+Lemma matching : forall a r r', a :: (select BTrue r) = r' -> 
+select BTrue r = match r' with
+| a :: x => x
+| nil => nil
+end.
+intros.
+break_match; try discriminate.
+crush.
+Qed.
 
 Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
@@ -197,7 +229,7 @@ Theorem queryEquivalence'':
       forall (r r' : relation), runQuery q r = Some r' ->
         runImp' p r = Some r'. Print Ltac break_match.
   
-
+(* automagic!
   induction q; [
     (* select cases *) 
     intros; destruct b; crush; f_equal; crush
@@ -215,6 +247,8 @@ Theorem queryEquivalence'':
                end]]].
 
 Restart.
+*)
+
 induction q.
 intros; destruct b; crush; f_equal; crush.
 
@@ -281,6 +315,76 @@ clear Heqo0 Heqo1.
 unfold runQuery in H.
 unfold project in H.
 break_match; discriminate.
+
+
+(* SelectIf case *)
+intros p Hc; inv Hc.
+induction r.  
+destruct b; trivial.
+
+intros.
+unfold runImp'.
+break_match; try discriminate.
+break_match.
+break_match; try discriminate.
+inv Heqo0.
+f_equal.
+
+
+unfold runStatement in Heqo1.
+break_match.
+break_match; try discriminate.
+inv Heqo1. 
+unfold runStatement in Heqo.
+inv Heqo.
+break_match; try discriminate.
+inv Heqo0.
+simpl.
+unfold runQuery in H.
+
+assert (select BTrue (a :: r) = r').
+inv H. simpl. reflexivity.
+clear H.
+simpl in H0. unfold runQuery in IHr. 
+
+(* stuck here so trying to rewrite with r-{a} *)
+specialize IHr with (match r' with | a :: r'' => r'' | nil => nil end).
+
+Check matching.
+apply matching in H0.
+assert (Some (select BTrue r) = Some (match r' with
+                        | nil => nil
+                        | _ :: x => x
+                        end)).
+f_equal.
+assumption.
+apply IHr in H. 
+break_match; try discriminate. 
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate. 
+unfold runStatement in Heqo1.
+rewrite Heqo1 in Heqo2.
+unfold runStatement in Heqo.
+
+
+rewrite
+
+break_match; try discriminate.
+unfold select in H0.
+
+
+assert (a :: r'' = r'). 
+
+unfold select.  
+
+unfold runQuery in IHr. unfold select in I
+
+unfold selec
+unfold runQuery in IHr.
+
+
 Qed.
 (* TODO list:
 - add SelectTuple (then can unify by bringing back AppendTuple)
