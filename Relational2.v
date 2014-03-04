@@ -13,10 +13,14 @@ Inductive Bool : Set :=
   | BTrue : Bool
   | BFalse : Bool.
 
+Inductive Pred : Set :=
+  | PredBool : Bool -> Pred.
+  | PredFirst1 : Pred.  (* represents true if tuple[0]=1 *)
+
 Inductive Query : Set := 
   | Select : Bool -> Query
   | Project : nat -> Query
-  | SelectIf : Bool -> Query. (* currently as expressive only as Select *) 
+  | SelectIf : Pred -> Query. (* currently as expressive only as Select *) 
 
 Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
   match t with
