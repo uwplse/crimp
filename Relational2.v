@@ -354,8 +354,51 @@ unfold runStatement in Heqo. inv Heqo.
 unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. simpl. reflexivity.
 *)
 
+discriminate.
 
+break_match; try discriminate.
+clear Heqo0.
+unfold runStatement in Heqo. inv Heqo.
 
+destruct b.
+unfold runStatement in Heqo1.
+break_match; try discriminate.
+clear Heqo1.
+unfold runQuery in H. simpl in H. inversion H. clear H. 
+destruct r'. crush. 
+inversion H1. subst a. rewrite H1. clear H1.
+unfold runQuery in IHr.
+assert (Some (select BTrue r) = Some r'). crush. clear H2.
+
+apply IHr in H. clear IHr. unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+crush.
+(* This is what the above crush does! 
+inv Heqo1. inv H.
+unfold runStatement in Heqo0. inv Heqo0.
+unfold runStatement in Heqo2. rewrite Heqo in Heqo2. clear Heqo. inv Heqo2.
+*)
+
+unfold runStatement in Heqo1.
+break_match; try discriminate.
+clear Heqo1.
+unfold runQuery in H. simpl in H. inversion H. clear H.
+unfold runQuery in IHr.
+assert (Some (select BFalse r) = Some r'). crush. 
+rewrite H1. clear H1.
+apply IHr in H. clear IHr.
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+crush.
+(* This is what the above crush does!
+inv Heqo1. inv H.
+unfold runStatement in Heqo0. inv Heqo0.
+unfold runStatement in Heqo2. rewrite Heqo in Heqo2. clear Heqo. inv Heqo2.
+*)
 Qed.
 (* TODO list:
 - add SelectTuple (then can unify by bringing back AppendTuple)
