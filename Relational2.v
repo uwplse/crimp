@@ -20,7 +20,7 @@ Inductive Pred : Set :=
 Inductive Query : Set := 
   | Select : Bool -> Query
   | Project : nat -> Query
-  | SelectIf : Pred -> Query. (* currently as expressive only as Select *) 
+  | SelectIf : Pred -> Query. (* overlaps with Select *)
 
 Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
   match t with
