@@ -198,31 +198,7 @@ end.
 (* this appears to be less straight forward to convert to non-tail calls, but I think
 it is possible if we rely on monotonic query processing *)
 
-  
-(* appears that matching in opposite order of arguments is hurtful 
-   swapped runStatement rel and res to match order. I guess partial application isn't possible? But what about equality chapter? *)  
-Print Ltac crush'.
-
 Ltac inv H := inversion H; subst; clear H.
-(* github, james, break match *)
-
-(*
-Lemma matching': forall a r r' r'', a :: (select BTrue r) = r' -> a :: r'' = r' /\ r'' = (select BTrue r). Abort. 
-
-Lemma matching: forall a r r' r'', a :: r'' = r' /\ r'' = (select BTrue r) -> a :: (select BTrue r) = r'. crush.
-Qed.
-*)
-
-Lemma matching : forall a r r', a :: (select BTrue r) = r' -> 
-select BTrue r = match r' with
-| a :: x => x
-| nil => nil
-end.
-intros.
-break_match; try discriminate.
-crush.
-Qed. 
-
 Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
@@ -330,7 +306,6 @@ break_match; try discriminate.
 inv Heqo0.
 f_equal.
 
-
 unfold runStatement in Heqo1.
 break_match.
 break_match; try discriminate.
@@ -360,6 +335,23 @@ crush.
 inv Heqo0. inv H.
 unfold runStatement in Heqo. inv Heqo. simpl. f_equal.
 unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. trivial.
+*)
+
+
+simpl. clear Heqb0. inv Heqo0. simpl.
+unfold runQuery in H. simpl in H. inversion H. clear H.
+unfold runQuery in IHr.
+assert (Some (select BFalse r) = Some r'). crush. rewrite H1. clear H1.
+apply IHr in H. clear IHr.
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+crush.
+(* This is what the above crush actually does
+inv Heqo0. inv H.
+unfold runStatement in Heqo. inv Heqo.
+unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. simpl. reflexivity.
 *)
 
 
