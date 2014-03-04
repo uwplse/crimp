@@ -221,7 +221,7 @@ end.
 intros.
 break_match; try discriminate.
 crush.
-Qed.
+Qed. 
 
 Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
@@ -340,49 +340,28 @@ inv Heqo.
 break_match; try discriminate.
 inv Heqo0.
 simpl.
+
+unfold runQuery in IHr.
 unfold runQuery in H.
 
-assert (select BTrue (a :: r) = r').
-inv H. simpl. reflexivity.
-clear H.
-simpl in H0. unfold runQuery in IHr. 
+(* This trick lets us get rid of the 'a' appended to Select BTrue r 
+   so that we can use it in the induction hypothesis.
+   Special thanks go to Colin. *)
+simpl in H. destruct r'; inversion H. clear H. subst a. rewrite H2.
+(* Adding 'some' back so that we can unify with the induction hypothesis. *)
+assert (Some (select BTrue r) = Some r'). crush. clear H2. apply IHr in H. clear IHr. 
 
-(* stuck here so trying to rewrite with r-{a} *)
-specialize IHr with (match r' with | a :: r'' => r'' | nil => nil end).
-
-Check matching.
-apply matching in H0.
-assert (Some (select BTrue r) = Some (match r' with
-                        | nil => nil
-                        | _ :: x => x
-                        end)).
-f_equal.
-assumption.
-apply IHr in H. 
-break_match; try discriminate. 
-unfold runImp' in H.
+f_equal. unfold runImp' in H.
 break_match; try discriminate.
 break_match; try discriminate.
-break_match; try discriminate. 
-unfold runStatement in Heqo1.
-rewrite Heqo1 in Heqo2.
-unfold runStatement in Heqo.
-
-
-rewrite
-
 break_match; try discriminate.
-unfold select in H0.
+crush.
+(* This is what the above crush actually does!
+inv Heqo0. inv H.
+unfold runStatement in Heqo. inv Heqo. simpl. f_equal.
+unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. trivial.
+*)
 
-
-assert (a :: r'' = r'). 
-
-unfold select.  
-
-unfold runQuery in IHr. unfold select in I
-
-unfold selec
-unfold runQuery in IHr.
 
 
 Qed.
