@@ -299,95 +299,45 @@ break_match; discriminate.
 
 (* SelectIf case *)
 intros p Hc; inv Hc.
-induction r.  
-destruct b; trivial.
+induction r; destruct b; trivial.
 
 intros.
-unfold runImp'.
-break_match; try discriminate.
-break_match.
-break_match; try discriminate.
-inv Heqo0.
-f_equal.
-
-unfold runStatement in Heqo1.
-break_match.
-break_match; try discriminate.
-inv Heqo1. 
-unfold runStatement in Heqo.
-inv Heqo.
-break_match; try discriminate.
-inv Heqo0.
-simpl.
-
-unfold runQuery in IHr.
-unfold runQuery in H.
-
-(* This trick lets us get rid of the 'a' appended to Select BTrue r 
-   so that we can use it in the induction hypothesis.
-   Special thanks go to Colin. *)
-simpl in H. destruct r'; inversion H. clear H. subst a. rewrite H2.
-(* Adding 'some' back so that we can unify with the induction hypothesis. *)
-assert (Some (select BTrue r) = Some r'). crush. clear H2. apply IHr in H. clear IHr. 
-
-f_equal. unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-crush.
-(* This is what the above crush actually does!
-inv Heqo0. inv H.
-unfold runStatement in Heqo. inv Heqo. simpl. f_equal.
-unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. trivial.
-*)
-
-
-simpl. clear Heqb0. inv Heqo0. simpl.
 unfold runQuery in H. simpl in H. inversion H. clear H.
+destruct r'. crush. inversion H1. subst a. clear H1.
 unfold runQuery in IHr.
-assert (Some (select BFalse r) = Some r'). crush. rewrite H1. clear H1.
+assert (Some (select BTrue r) = Some r'). crush.
 apply IHr in H. clear IHr.
 unfold runImp' in H.
 break_match; try discriminate.
 break_match; try discriminate.
 break_match; try discriminate.
-crush.
-(* This is what the above crush actually does
-inv Heqo0. inv H.
+inv Heqo0. inversion H. clear H.
 unfold runStatement in Heqo. inv Heqo.
-unfold runStatement in Heqo1. rewrite Heqo1 in Heqo2. clear Heqo1. inv Heqo2. simpl. reflexivity.
-*)
-
-discriminate.
-
+unfold runStatement in Heqo1.
+simpl in H1.
+unfold runImp'.
 break_match; try discriminate.
-clear Heqo0.
+break_match.
+break_match; try discriminate.
+f_equal. simpl. inv Heqo0.
+unfold runStatement in Heqo2.
+break_match; try discriminate. 
+(* crush. *)
+inv Heqo2. inv Heqo1. 
 unfold runStatement in Heqo. inv Heqo.
-
-destruct b.
-unfold runStatement in Heqo1.
-break_match; try discriminate.
-clear Heqo1.
-unfold runQuery in H. simpl in H. inversion H. clear H. 
-destruct r'. crush. 
-inversion H1. subst a. rewrite H1. clear H1.
-unfold runQuery in IHr.
-assert (Some (select BTrue r) = Some r'). crush. clear H2.
-
-apply IHr in H. clear IHr. unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
+unfold select in H1.
+(* Note that I cannot prove the remaining with explicit commands. crush 
+   (of course) takes care of it. *) 
 crush.
-(* This is what the above crush does! 
-inv Heqo1. inv H.
-unfold runStatement in Heqo0. inv Heqo0.
-unfold runStatement in Heqo2. rewrite Heqo in Heqo2. clear Heqo. inv Heqo2.
-*)
 
-unfold runStatement in Heqo1.
 break_match; try discriminate.
-clear Heqo1.
+inv H1. clear Heqo0.
+unfold runStatement in Heqo2. 
+(* This unfolds brings the contradiction that is required to prove 
+   both cases. *)
+break_match; discriminate.
+
+intros.
 unfold runQuery in H. simpl in H. inversion H. clear H.
 unfold runQuery in IHr.
 assert (Some (select BFalse r) = Some r'). crush.  
@@ -397,12 +347,31 @@ unfold runImp' in H.
 break_match; try discriminate.
 break_match; try discriminate.
 break_match; try discriminate.
-crush.
-(* This is what the above crush does!
-inv Heqo1. inv H.
-unfold runStatement in Heqo0. inv Heqo0.
-unfold runStatement in Heqo2. rewrite Heqo in Heqo2. clear Heqo. inv Heqo2.
-*)
+inv H. inv Heqo0.
+unfold runStatement in Heqo. inv Heqo.
+unfold runImp'.
+break_match; try discriminate.
+unfold runStatement in Heqo. inv Heqo.
+break_match.
+f_equal. f_equal. 
+break_match; try discriminate.
+inv Heqo. f_equal.
+unfold runStatement in Heqo0.
+break_match; try discriminate.
+(* crush. *)
+inv Heqo0.
+unfold runStatement in Heqo1. 
+rewrite Heqo in Heqo1. clear Heqo. inv Heqo1. trivial.
+
+break_match; try discriminate.
+clear Heqo. 
+unfold runStatement in Heqo0.
+break_match; try discriminate.
+(* crush. *)
+clear Heqo0.
+unfold runStatement in Heqo1.
+rewrite Heqo1 in Heqo. discriminate.
+
 Qed.
 (* wish list:
 - unify ProjectTuple and SelectTuple by bringing back AppendTuple
