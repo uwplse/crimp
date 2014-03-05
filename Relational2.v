@@ -13,14 +13,21 @@ Inductive Bool : Set :=
   | BTrue : Bool
   | BFalse : Bool.
 
+(**
+  Query language syntax
+**) 
 Inductive Pred : Set :=
-  | PredBool : Bool -> Pred.
+  | PredBool : Bool -> Pred
   | PredFirst1 : Pred.  (* represents true if tuple[0]=1 *)
 
 Inductive Query : Set := 
   | Select : Bool -> Query
   | Project : nat -> Query
   | SelectIf : Pred -> Query. (* overlaps with Select *)
+(**
+  end (Query language syntax)
+**)
+
 
 Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
   match t with
@@ -44,16 +51,27 @@ Fixpoint project (input: relation) (index: nat) :=
                          end
       end.
 
-Fixpoint select (b: Bool)  (input: relation) :=
-  match b with
-    | BTrue => match input with
+Fixpoint select (pr: Pred)  (input: relation) :=
+  match pr with
+    | PredBool b =>
+      match b with
+        | BTrue => match input with
                    | nil => nil
-                   | tup :: rem => tup :: (select b rem)
+                   | tup :: rem => tup :: (select pr rem)
                end
-    | BFalse => match input with
+        | BFalse => match input with
                   | nil => nil
-                  | _ :: rem => select b rem
+                  | _ :: rem => select pr rem
                 end
+      end
+    | PredFirst1 => match input with
+                      | nil => nil
+                      | t :: rem => match t with
+                                      | TCons 1 _ => t :: (select pr rem)
+                                     (* picking semantics that length 0 tuples just fail the predicate rather than fail *)
+                                      | _ => select pr rem
+                                    end
+                    end                  
     end.
 (*
 match input with
@@ -73,20 +91,27 @@ Definition runQuery (q : Query) (inputRelation : relation) : option relation :=
                 | BTrue => Some inputRelation
                 | BFalse => Some nil
                 end
-  | SelectIf b => Some (select b inputRelation)
+  | SelectIf pr => Some (select pr inputRelation)
   | Project index => project inputRelation index
   end.
 
+(**
+  IMP syntax
+**)
 Inductive VarName : Set :=
   | ResultName : VarName
   | IndexedVarName : nat -> VarName.
+
+Inductive BExp : Set :=
+  | BoolBExp : Bool -> BExp
+  | Pred1Exp : BExp. 
 
 Inductive Exp : Set :=
   | InputRelation : Exp
   | RelationExp : relation -> Exp
 (*  | TupleExp : tuple -> Exp *)
   | NatExp : nat -> Exp
-  | BoolExp : Bool -> Exp.
+  | BoolExp : BExp -> Exp.
 
 (* It turns out that Forall is already defined in Coq, so I used ForAll *)
 Inductive Statement : Set :=
@@ -98,6 +123,10 @@ Inductive Statement : Set :=
 Inductive ImpProgram : Set :=
   | Seq : Statement -> ImpProgram -> ImpProgram
   | Skip.
+
+(**
+   end (IMP syntx
+**)
 
 Definition queryToImp (q : Query) : option ImpProgram :=
   match q with
@@ -112,13 +141,25 @@ Definition queryToImp (q : Query) : option ImpProgram :=
                         (ForAll (IndexedVarName 0)
                           (ProjectTuple (NatExp index) (IndexedVarName 0)))
                         Skip))
-  | SelectIf b => Some 
+  | SelectIf pr => match pr with
+                     | PredBool b =>  
+                       Some 
                      (Seq 
                       (Assign ResultName (RelationExp nil))
                       (Seq
                         (ForAll (IndexedVarName 0)
-                          (SelectTuple (BoolExp b) (IndexedVarName 0)))
+                          (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0)))
                         Skip))
+                     | PredFirst1 =>
+                       Some 
+                     (Seq 
+                      (Assign ResultName (RelationExp nil))
+                      (Seq
+                        (ForAll (IndexedVarName 0)
+                          (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0)))
+                        Skip))
+                    end
+
                         
   end.
 
@@ -137,10 +178,16 @@ Fixpoint runStatement (s: Statement) (input: relation) (heap: tuple) : option re
           | None => None
           end
   | ProjectTuple _ _ => None
-  | SelectTuple (BoolExp b) (IndexedVarName vnIndex) =>
-      match b with
-         | BTrue => Some (heap :: nil)
-         | BFalse => Some nil
+  | SelectTuple (BoolExp bexp) (IndexedVarName vnIndex) =>
+      match bexp with
+        | BoolBExp b => match b with
+                          | BTrue => Some (heap :: nil)
+                          | BFalse => Some nil
+                        end
+        | Pred1Exp => match heap with
+                        | TCons 1 _ => Some (heap :: nil)
+                        | _ => Some nil
+                      end
       end
   | SelectTuple _ _ => None
   | ForAll (IndexedVarName index)  s' =>
@@ -191,13 +238,53 @@ Fixpoint runImp' (p: ImpProgram) (input: relation) : option relation :=
                       end
 end.
 
+(** 
+  Test cases
+**)
+Eval compute in let p := queryToImp (Project 0) in
+                        match p with 
+                          | None => None
+                          | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
+end.
+(* = Some [(1),(3)] *)
+
+Eval compute in let p := queryToImp (Project 2) in
+                        match p with 
+                          | None => None
+                          | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
+end.
+(* = None *)
 
 Eval compute in let p := queryToImp (Project 1) in
                         match p with 
                           | None => None
                           | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
 end.
+(* = Some [(2),(4)] *)
 
+Eval compute in let p := queryToImp (SelectIf (PredBool BTrue)) in
+                          match p with
+                            | None => None
+                            | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
+end.
+(* = Some [(1,2),(3,4)] *)
+
+Eval compute in let p := queryToImp (SelectIf (PredBool BFalse)) in
+                          match p with
+                            | None => None
+                            | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: nil)
+end.
+
+Eval compute in let p := queryToImp (SelectIf PredFirst1) in
+                        match p with 
+                          | None => None
+                          | Some p' => runImp p' ((TCons 1 (TCons 2 TNil)) :: (TCons 3 (TCons 4 TNil)) :: (TCons 0 (TCons 1 TNil)) :: (TCons 1 (TCons 6 TNil)) :: nil)
+end. 
+(* = Some [(1,2),(1,6)] *)
+
+(**
+   end (Test cases)
+**)
 
 (* this appears to be less straight forward to convert to non-tail calls, but I think
 it is possible if we rely on monotonic query processing *)
