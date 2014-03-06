@@ -467,7 +467,131 @@ rewrite Heqo1 in Heqo. discriminate.
 
 
 (* SelectIf PredFirst1 *)
+induction r. crush.
 
+intros.
+inversion H0. clear H0.
+unfold runQuery in H.
+unfold select in H.
+break_match.
+break_match.
+
+unfold runQuery in IHr.
+unfold select in IHr.
+apply IHr in H. clear IHr.
+inversion H2 in H. clear H0 H2.
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+inv Heqo0.
+inv H.
+unfold runImp'.
+break_match; try discriminate.
+break_match.
+break_match; try discriminate.
+f_equal. f_equal.  
+unfold runStatement in Heqo.  (* unfold the two terms with r1 and r0 *)
+inv Heqo.
+unfold runStatement in Heqo0.
+inv Heqo0.
+reflexivity.
+
+unfold runStatement in Heqo3.
+inv Heqo2.
+break_match; try discriminate.
+unfold runStatement in Heqo1.
+crush.
+
+break_match; try discriminate.
+unfold runStatement in Heqo.
+unfold runStatement in Heqo1.
+unfold runStatement in Heqo0.
+unfold runStatement in Heqo3.
+break_match; try discriminate.
+
+
+break_match.
+unfold runQuery in IHr.
+unfold select in IHr.
+destruct r'.
+discriminate.
+
+(* breaking apart a list relation; a Lemma seems unnecessary *)
+Lemma list_eq : forall (A : Type ) (h : A) t t' (h' : A), Some (h :: t) = Some (h' :: t') -> (t = t') /\ (h = h').
+crush.
+Qed.
+apply list_eq in H.
+fold select in H.
+fold select in IHr.
+destruct H.   (* split conjunction in a hyp *)
+assert (Some (select PredFirst1 r) = Some r'). f_equal. assumption.
+apply IHr in H1. clear IHr.
+inv H2. clear H3.
+unfold runImp' in H1.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+unfold runStatement in Heqo.
+unfold runStatement in Heqo1.
+unfold runImp'.
+break_match; try discriminate.
+break_match.
+break_match; try discriminate.
+unfold runStatement in Heqo2.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+crush.
+
+break_match; try discriminate.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+
+unfold runQuery in IHr.
+apply IHr in H. clear IHr.
+inv H2. clear H0.
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+unfold runStatement in Heqo1.
+unfold runImp'.
+break_match; try discriminate.
+break_match.
+break_match; try discriminate.
+unfold runStatement in Heqo2.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+unfold runStatement in Heqo.
+crush.
+
+break_match; try discriminate.
+unfold runStatement in Heqo2.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+unfold runQuery in IHr. 
+apply IHr in H. clear IHr.
+inv H2. clear H0.
+unfold runImp' in H.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+unfold runStatement in Heqo.
+unfold runStatement in Heqo1.
+unfold runImp'.
+break_match; try discriminate.
+break_match; try discriminate.
+break_match; try discriminate.
+unfold runStatement in Heqo2.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+crush.
+
+break_match; try discriminate.
+unfold runStatement in Heqo2.
+unfold runStatement in Heqo4.
+break_match; try discriminate.
+ 
 Qed.
 (* wish list:
 - unify ProjectTuple and SelectTuple by bringing back AppendTuple
