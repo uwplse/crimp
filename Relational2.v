@@ -290,11 +290,36 @@ end.
 it is possible if we rely on monotonic query processing *)
 
 Ltac inv H := inversion H; subst; clear H.
+Ltac unfold_all := repeat match goal with 
+                  | [ |- runImp' _ _ = _ ] => unfold runImp'; [repeat break_match; try discriminate]
+                  | [H: runImp' _ _ = _ |- _ ] => unfold runImp' in H; [repeat break_match; try discriminate]
+                  | [H: runQuery _ _ = _ |- _ ] => unfold runQuery in H; [repeat break_match; try discriminate]
+                  | H: project _ _ = _ |- _ => unfold project in H                 
+                  | [H: runStatement _ _ _ = _ |- _ ] => unfold runStatement in H; [repeat break_match; try discriminate]
+                end.
+Ltac inv_somes := repeat match goal with
+                           | [ H: Some _ = Some _ |- _ ] => inv H
+                         end.
+
+Lemma some_eq : forall (A:Type) (p : A) (q : A), p = q -> Some p = Some q.
+  crush.
+Qed.
+
+(* breaking apart a list relation; a Lemma seems unnecessary *)
+Lemma some_list_eq : forall (A : Type ) (h : A) t t' (h' : A), Some (h :: t) = Some (h' :: t') -> (t = t') /\ (h = h').
+crush.
+Qed.
+
+(* breaking apart a list relation; a Lemma seems unnecessary *)
+Lemma list_eq : forall (A : Type ) (h : A) t t' (h' : A), h :: t = h' :: t' -> (t = t') /\ (h = h').
+crush.
+Qed.
+
 Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
       forall (r r' : relation), runQuery q r = Some r' ->
-        runImp' p r = Some r'. Print Ltac break_match.
+        runImp' p r = Some r'. 
   
 (* automagic!
   induction q; [
@@ -317,71 +342,32 @@ Restart.
 *)
 
 induction q.
+
+(* Select case *)
 intros; destruct b; crush; f_equal; crush.
 
+(* Project case *)
 intros p Hc; inv Hc.
 induction r. crush. 
 
   intros.
 
-unfold runImp'.
-
-break_match; try discriminate.
-break_match. (* discriminate not work on 2nd subgoal *) 
-break_match; try discriminate.
+unfold_all.
 f_equal.
-inv Heqo0.
+fold project in Heqo5.
+fold (runQuery (Project n) r) in Heqo5.
+apply IHr in Heqo5. clear IHr.       (* apply is smart, no need to specialize IHr's r'*)
+unfold_all.
+rewrite Heqo8 in Heqo3. clear Heqo8.
+inv_somes.
+trivial.
 
-unfold runQuery in H.
-unfold project in H.
-break_match; try discriminate.
-break_match; try discriminate. 
-inv H.
-fold project in Heqo2.
-fold (runQuery (Project n) r) in Heqo2.
-
-apply IHr in Heqo2.       (* apply is smart, no need to specialize IHr's r'*)
-unfold runImp' in Heqo2.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-inv Heqo4. inv Heqo2.
-
-(* imp side *)
-unfold runStatement in Heqo1.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
+fold project in Heqo5.
+fold (runQuery (Project n) r) in Heqo5.
+apply IHr in Heqo5. clear IHr.
+unfold_all.
+inv_somes.
 crush.
-
-break_match; try discriminate.
-clear Heqo0.
-unfold runStatement in Heqo1.
-break_match.  (* discriminate not work on 2nd subgoal *)
-break_match; try discriminate.
-break_match; try discriminate.
-inv Heqo0. clear Heqo1. 
-unfold runStatement in Heqo.
-inv Heqo.
-unfold runQuery in H.
-unfold project in H.
-break_match; try discriminate.
-break_match; try discriminate.
-inv Heqo3.
-fold project in Heqo0.
-unfold runQuery in IHr. (* here we unify by unfolding instead of folding Heqo0 which is neater *)
-apply IHr in Heqo0.
-unfold runImp' in Heqo0.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-crush.
-
-break_match; try discriminate.
-clear Heqo0 Heqo1.
-unfold runQuery in H.
-unfold project in H.
-break_match; discriminate.
 
 
 (* SelectIf case *)
@@ -389,22 +375,25 @@ intros p0 Hc; inv Hc.
 destruct p.
 induction r; destruct b. crush. crush.
 
+inv H0.
 intros.
+
 unfold runQuery in H. simpl in H. inversion H. clear H.
-destruct r'. crush. inversion H2. subst a. clear H2.
+destruct r'. crush. inversion H1. subst a. clear H2.
 unfold runQuery in IHr.
 assert (Some (select (PredBool BTrue) r) = Some r'). crush.
 apply IHr in H. clear IHr.
 
-inversion H0 in H.
+rewrite H1.
+
 unfold runImp' in H.
 break_match; try discriminate.
 break_match; try discriminate.
 break_match; try discriminate.
-inv Heqo0. inversion H. clear H. clear H0.
+inv Heqo0. inversion H. clear H. 
 unfold runStatement in Heqo. inv Heqo.
 unfold runStatement in Heqo1.
-simpl in H2.
+simpl in H1.
 unfold runImp'.
 break_match; try discriminate.
 break_match.
@@ -415,55 +404,37 @@ break_match; try discriminate.
 (* crush. *)
 inv Heqo2. inv Heqo1. 
 unfold runStatement in Heqo. inv Heqo.
-unfold select in H2.
+unfold select in H1.
 (* Note that I cannot prove the remaining with explicit commands. crush 
    (of course) takes care of it. *) 
 crush.
 
+
 break_match; try discriminate.
-inv H2. clear Heqo0.
+inv H1. clear Heqo0.
 unfold runStatement in Heqo2. 
 (* This unfolds brings the contradiction that is required to prove 
    both cases. *)
 break_match; discriminate.
 
+(* SelectIf PredBool False *)
 intros.
-unfold runQuery in H. simpl in H. inversion H. clear H.
+inv H0.
+unfold_all.
 unfold runQuery in IHr.
-assert (Some (select (PredBool BFalse) r) = Some r'). crush.
-inversion H0.  
-rewrite H2. clear H2.
+unfold select in H. fold select in H. (* gets rid of "a" *)
 apply IHr in H. clear IHr.
-inversion H0 in H.
-unfold runImp' in H.
-clear H0 H3.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-inv H. inv Heqo0.
-unfold runStatement in Heqo. inv Heqo.
-unfold runImp'.
-break_match; try discriminate.
-unfold runStatement in Heqo. inv Heqo.
-break_match.
-break_match; try discriminate.
-f_equal. f_equal.
-inv Heqo. f_equal.
-unfold runStatement in Heqo0.
-break_match; try discriminate.
-(* crush. *)
-inv Heqo0.
-unfold runStatement in Heqo1. 
-rewrite Heqo in Heqo1. clear Heqo. inv Heqo1. trivial.
+unfold_all.
+rewrite Heqo5 in Heqo2.
+inv_somes.
+simpl. reflexivity.
 
-break_match; try discriminate.
-clear Heqo. 
-unfold runStatement in Heqo0.
-break_match; try discriminate.
-(* crush. *)
-clear Heqo0.
-unfold runStatement in Heqo1.
-rewrite Heqo1 in Heqo. discriminate.
+unfold select in H. fold select in H. (* gets rid of "a" *)
+apply IHr in H. clear IHr.
+unfold_all.
+rewrite Heqo5 in Heqo2.
+inv_somes.
+discriminate.
 
 
 (* SelectIf PredFirst1 *)
@@ -475,128 +446,71 @@ unfold runQuery in H.
 unfold select in H.
 break_match.
 break_match.
-
 unfold runQuery in IHr.
 unfold select in IHr.
 apply IHr in H. clear IHr.
-inversion H2 in H. clear H0 H2.
-unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-inv Heqo0.
-inv H.
-unfold runImp'.
-break_match; try discriminate.
-break_match.
-break_match; try discriminate.
-f_equal. f_equal.  
-unfold runStatement in Heqo.  (* unfold the two terms with r1 and r0 *)
-inv Heqo.
-unfold runStatement in Heqo0.
-inv Heqo0.
-reflexivity.
+inversion H2 in H. clear H2 H0.
+unfold_all.
+rewrite Heqo4 in Heqo5. clear Heqo4.
+crush. 
 
-unfold runStatement in Heqo3.
-inv Heqo2.
-break_match; try discriminate.
-unfold runStatement in Heqo1.
-crush.
+rewrite Heqo4 in Heqo5. clear Heqo4.
+discriminate.
 
 break_match; try discriminate.
-unfold runStatement in Heqo.
-unfold runStatement in Heqo1.
-unfold runStatement in Heqo0.
-unfold runStatement in Heqo3.
-break_match; try discriminate.
-
-
-break_match.
+unfold_all.
 unfold runQuery in IHr.
 unfold select in IHr.
 destruct r'.
+crush.
+
+apply some_list_eq in H.
+destruct H. fold select in H. fold select in IHr.
+apply some_eq in H.
+apply IHr in H. clear IHr.
+inv H2. clear H1.
+unfold_all.
+rewrite Heqo2 in Heqo5. clear Heqo2.
+inv_somes. trivial.
+
+destruct r'. discriminate.
+fold select in H.
+apply some_list_eq in H.
+destruct H.
+unfold runQuery in IHr.
+apply some_eq in H.
+apply IHr in H. clear IHr.
+inv H2. clear H1.
+unfold_all.
+rewrite Heqo2 in Heqo5. clear Heqo2.
 discriminate.
 
-(* breaking apart a list relation; a Lemma seems unnecessary *)
-Lemma list_eq : forall (A : Type ) (h : A) t t' (h' : A), Some (h :: t) = Some (h' :: t') -> (t = t') /\ (h = h').
-crush.
-Qed.
-apply list_eq in H.
 fold select in H.
-fold select in IHr.
-destruct H.   (* split conjunction in a hyp *)
-assert (Some (select PredFirst1 r) = Some r'). f_equal. assumption.
-apply IHr in H1. clear IHr.
-inv H2. clear H3.
-unfold runImp' in H1.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-unfold runStatement in Heqo.
-unfold runStatement in Heqo1.
-unfold runImp'.
-break_match; try discriminate.
-break_match.
-break_match; try discriminate.
-unfold runStatement in Heqo2.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
-crush.
-
-break_match; try discriminate.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
-
 unfold runQuery in IHr.
 apply IHr in H. clear IHr.
 inv H2. clear H0.
-unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-unfold runStatement in Heqo1.
-unfold runImp'.
-break_match; try discriminate.
-break_match.
-break_match; try discriminate.
-unfold runStatement in Heqo2.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
-unfold runStatement in Heqo.
-crush.
+unfold_all.
+rewrite Heqo4 in Heqo5. clear Heqo4.
+inv_somes. trivial.
 
-break_match; try discriminate.
-unfold runStatement in Heqo2.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
-unfold runQuery in IHr. 
-apply IHr in H. clear IHr.
+rewrite Heqo4 in Heqo5. clear Heqo4.
+discriminate.
+
+fold select in H.
+unfold runQuery in IHr.
 inv H2. clear H0.
-unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-unfold runStatement in Heqo.
-unfold runStatement in Heqo1.
-unfold runImp'.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
-unfold runStatement in Heqo2.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
-crush.
+apply IHr in H. clear IHr.  (* applying IHr probably crushable if we first unfold_all inside IHr *)
+unfold_all.
+rewrite Heqo4 in Heqo5. clear Heqo4.
+inv_somes.
+trivial.
 
-break_match; try discriminate.
-unfold runStatement in Heqo2.
-unfold runStatement in Heqo4.
-break_match; try discriminate.
- 
+rewrite Heqo4 in Heqo5. clear Heqo4.
+inv_somes.
+discriminate.
 Qed.
 (* wish list:
 - unify ProjectTuple and SelectTuple by bringing back AppendTuple
-- Ltac for unfolding and break matching
-- Ltac for break_match; try discr and/or repeat
 - try to remove duplication in proof
 *)
 
