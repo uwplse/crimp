@@ -385,23 +385,26 @@ break_match; discriminate.
 
 
 (* SelectIf case *)
-intros p Hc; inv Hc.
-induction r; destruct b; trivial.
+intros p0 Hc; inv Hc.
+destruct p.
+induction r; destruct b. crush. crush.
 
 intros.
 unfold runQuery in H. simpl in H. inversion H. clear H.
-destruct r'. crush. inversion H1. subst a. clear H1.
+destruct r'. crush. inversion H2. subst a. clear H2.
 unfold runQuery in IHr.
-assert (Some (select BTrue r) = Some r'). crush.
+assert (Some (select (PredBool BTrue) r) = Some r'). crush.
 apply IHr in H. clear IHr.
+
+inversion H0 in H.
 unfold runImp' in H.
 break_match; try discriminate.
 break_match; try discriminate.
 break_match; try discriminate.
-inv Heqo0. inversion H. clear H.
+inv Heqo0. inversion H. clear H. clear H0.
 unfold runStatement in Heqo. inv Heqo.
 unfold runStatement in Heqo1.
-simpl in H1.
+simpl in H2.
 unfold runImp'.
 break_match; try discriminate.
 break_match.
@@ -412,13 +415,13 @@ break_match; try discriminate.
 (* crush. *)
 inv Heqo2. inv Heqo1. 
 unfold runStatement in Heqo. inv Heqo.
-unfold select in H1.
+unfold select in H2.
 (* Note that I cannot prove the remaining with explicit commands. crush 
    (of course) takes care of it. *) 
 crush.
 
 break_match; try discriminate.
-inv H1. clear Heqo0.
+inv H2. clear Heqo0.
 unfold runStatement in Heqo2. 
 (* This unfolds brings the contradiction that is required to prove 
    both cases. *)
@@ -427,10 +430,13 @@ break_match; discriminate.
 intros.
 unfold runQuery in H. simpl in H. inversion H. clear H.
 unfold runQuery in IHr.
-assert (Some (select BFalse r) = Some r'). crush.  
-rewrite H1. clear H1.
+assert (Some (select (PredBool BFalse) r) = Some r'). crush.
+inversion H0.  
+rewrite H2. clear H2.
 apply IHr in H. clear IHr.
+inversion H0 in H.
 unfold runImp' in H.
+clear H0 H3.
 break_match; try discriminate.
 break_match; try discriminate.
 break_match; try discriminate.
@@ -440,8 +446,8 @@ unfold runImp'.
 break_match; try discriminate.
 unfold runStatement in Heqo. inv Heqo.
 break_match.
-f_equal. f_equal. 
 break_match; try discriminate.
+f_equal. f_equal.
 inv Heqo. f_equal.
 unfold runStatement in Heqo0.
 break_match; try discriminate.
@@ -458,6 +464,9 @@ break_match; try discriminate.
 clear Heqo0.
 unfold runStatement in Heqo1.
 rewrite Heqo1 in Heqo. discriminate.
+
+
+(* SelectIf PredFirst1 *)
 
 Qed.
 (* wish list:
