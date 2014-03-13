@@ -280,6 +280,13 @@ crush.
 unfold runStatement in IHr; rewrite <- IHr in Heqo0; clear IHr; crush.
 Qed.
 
+Lemma innerjoinequivalence' : forall r''' a r, nljoin_inner a r = match runStatement
+         (ForAll (IndexedVarName 1) InputRelation2
+            (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r
+         (a, nil) true with | Some res => res | None => nil end.
+intros; break_match; try discriminate; rewrite <- innerjoinequivalence in Heqo; crush.
+Qed.
+
 (* It turns out that we do not (and should not) have
    runImpSmall (small step semantics). Because otherwise
    Coq cannot figure out that our function is structurally
@@ -380,6 +387,9 @@ Ltac inv_somes := repeat match goal with
                            | [ H: Some _ = Some _ |- _ ] => inv H
                          end.
 
+Lemma some_eq' : forall (A:Type) (p:A) (q:A), Some p = Some q -> p = q.
+crush.
+Qed.
 Lemma some_eq : forall (A:Type) (p : A) (q : A), p = q -> Some p = Some q.
   crush.
 Qed.
@@ -581,6 +591,70 @@ unfold_all; rewrite Heqo4 in Heqo6; clear Heqo4; crush.
 
 
 (* Join first case *)
+intros p0 Hc; inv Hc.
+induction r1. crush.
+
+intros.
+unfold runQuery in H.
+unfold nljoin in H.
+unfold runQuery in IHr1. 
+unfold nljoin in IHr1.
+Check innerjoinequivalence'.
+erewrite innerjoinequivalence' in H.
+unfold runStatement in H.
+break_match; try discriminate.
+fold (runStatement
+             (ForAll (IndexedVarName 1) InputRelation2
+                (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) 
+             r1 r2 (a, nil) true) in Heqo.
+unfold runImp'.
+repeat break_match; try discriminate. simpl in Heqo2.
+inv Heqo0. simpl. unfold runStatement in Heqo2 (* kind of want to unfold this less... Alternative is to pull out helper and write the innerjoinequivalence in terms of that function *)
+repeat break_match; try discriminate. 
+
+
+
+(* rest below here *)
+induction r2.
+intros.
+unfold_all.
+unfold runQuery in IHr1. unfold nljoin in IHr1.
+unfold nljoin in H. simpl in H.
+
+apply IHr1 in H. clear IHr1.
+unfold_all; rewrite Heqo5 in Heqo2; clear Heqo5; crush.
+unfold runQuery in IHr1.
+unfold nljoin in IHr1.
+unfold nljoin in H. simpl in H.
+apply IHr1 in H. clear IHr1.
+unfold_all; rewrite Heqo5 in Heqo2; clear Heqo5; crush.
+
+intros.
+unfold runQuery in H.
+unfold nljoin in H.
+destruct (joineq a a0) eqn:?. 
+
+admit.
+unfold runQuery in IHr2. fold nljoin in H.
+unfold nljoin in IHr2. fold nljoin in IHr2.
+
+(* see if I can even prove afterwards... *)
+assert (Some
+           ((fix nljoin_inner (t : tuple) (r : relation) {struct r} :
+               relation :=
+               match r with
+               | nil => nil
+               | t' :: r'0 =>
+                   if joineq t t'
+                   then (t ++ t') :: nljoin_inner t r'0
+                   else nljoin_inner t r'0
+               end) a r2 ++ nljoin r1 r2) = Some r'). admit.
+
+apply IHr2 in H0. clear IHr2.
+unfold runQuery in  IHr1.
+unfold runImp' in H0. unfold_all. 
+
+
 Qed.
 (* wish list:
 - unify ProjectTuple and SelectTuple by bringing back AppendTuple
