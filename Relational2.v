@@ -89,14 +89,13 @@ Definition joineq (t1 : tuple) (t2 : tuple) : bool :=
     | _, _ => false
   end. 
 
-
-Fixpoint nljoin (r1 : relation) (r2 : relation) : relation :=
-  let fix nljoin_inner (t : tuple) (r : relation) : relation :=
-    match r with
+Fixpoint nljoin_inner (t : tuple) (r : relation) : relation :=
+match r with
       | t' :: r' => if joineq t t' then (t ++ t') :: nljoin_inner t r' else nljoin_inner t r'
       | nil => nil
-    end in
+    end.
 
+Fixpoint nljoin (r1 : relation) (r2 : relation) : relation :=
   match r1 with
     | t1 :: r1' => (nljoin_inner t1 r2) ++ nljoin r1' r2
     | nil => nil
