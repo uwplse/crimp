@@ -244,7 +244,41 @@ Fixpoint runStatement (s: Statement) (input1: relation) (input2: relation) (heap
   | MatchTuples _ _ => None
   end.
 
+(* proof that the inner loops for nested loop join are equivalent *)
+Lemma innerjoinequivalence : forall r''' a r, Some (nljoin_inner a r) = runStatement (ForAll (IndexedVarName 1) InputRelation2 (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r (pair a nil) true.
+Proof.
+intros r'''.
+intros a.
+induction r.
+crush.
 
+unfold nljoin_inner.
+destruct (joineq a a0) eqn:?.  (* important to keep this for reusing the case assignment later *)
+fold nljoin_inner.
+unfold runStatement.
+break_match; try discriminate.
+break_match; try discriminate. 
+simpl in Heqo.
+rewrite Heqb in Heqo.
+unfold runStatement in IHr.
+rewrite <- IHr in Heqo0. clear IHr. crush.
+
+simpl in Heqo.
+rewrite Heqb in Heqo.
+unfold runStatement in IHr.
+rewrite <- IHr in Heqo0. clear IHr.
+discriminate.
+
+simpl in Heqo.
+rewrite Heqb in Heqo.
+discriminate.
+
+unfold runStatement; [repeat break_match; try discriminate]; simpl in Heqb0.
+crush.
+unfold runStatement in IHr; rewrite <- IHr in Heqo0; clear IHr; crush.
+crush.
+unfold runStatement in IHr; rewrite <- IHr in Heqo0; clear IHr; crush.
+Qed.
 
 (* It turns out that we do not (and should not) have
    runImpSmall (small step semantics). Because otherwise
