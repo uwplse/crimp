@@ -287,6 +287,44 @@ Lemma innerjoinequivalence' : forall r''' a r, nljoin_inner a r = match runState
 intros; break_match; try discriminate; rewrite <- innerjoinequivalence in Heqo; crush.
 Qed.
 
+Section test.
+Variable r''' : relation.
+Variable r : relation.
+Variable a : tuple.
+Eval simpl in runStatement
+         (ForAll (IndexedVarName 1) InputRelation2
+            (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r
+         (a, nil) true.
+End test.
+Lemma innerjoinequivalence'' : forall a r, Some (nljoin_inner a r) = (fix helper (rel : relation) (nested' : bool) {struct rel} :
+          option (list tuple) :=
+          match rel with
+          | nil => Some nil
+          | t :: rem =>
+              match
+                (if joineq (fst (if nested' then (a, t) else (t, nil)))
+                      (snd (if nested' then (a, t) else (t, nil)))
+                 then
+                  Some
+                    ((fst (if nested' then (a, t) else (t, nil)) ++
+                      snd (if nested' then (a, t) else (t, nil))) :: nil)
+                 else Some nil)
+              with
+              | Some res =>
+                  match helper rem nested' with
+                  | Some rem' => Some (res ++ rem')
+                  | None => None
+                  end
+              | None => None
+              end
+          end) r true.
+Proof.
+intros.
+erewrite innerjoinequivalence. crush.
+Grab Existential Variables.
+constructor.
+Qed.
+
 (* It turns out that we do not (and should not) have
    runImpSmall (small step semantics). Because otherwise
    Coq cannot figure out that our function is structurally
@@ -591,15 +629,38 @@ unfold_all; rewrite Heqo4 in Heqo6; clear Heqo4; crush.
 
 
 (* Join first case *)
-intros p0 Hc; inv Hc.
-induction r1. crush.
 
-intros.
+Lemma complex_list_eq : forall (A:Type) (a:A) b c d e, Some ((a::b) ++ c) = Some (d :: e) -> (a = d) /\ Some (b++c) = Some e.
+Proof.
+crush.
+Qed. 
+intros p0 Hc; inv Hc. 
+induction r1. crush. intros.
+
+
 unfold runQuery in H.
 unfold nljoin in H.
 unfold runQuery in IHr1. 
 unfold nljoin in IHr1.
+(* problem here is that I really need to know what r' is to apply IHr1, and despite
+relating the result of nljoin_inner to runStatement, innerjoinequiv does not help to apply IHr1 *)
 Check innerjoinequivalence'.
+erewrite innerjoinequivalence' in H.
+simpl in H. break_match; try discriminate.
+destruct r'.
+Lemma list_nil : forall (A:Type) (a:list A) b, a++b =nil -> a= nil /\ b=nil.
+intros.
+destruct a; crush.
+Qed.
+
+
+simpl in H. apply IHr1 in H. clear IHr1. unfold_all; rewrite Heqo4 in Heqo5; clear Heqo4; crush.
+intros.
+simpl in H. destruct (joineq a a0) eqn:?.
+(* isn't useful: destruct r'. crush.*)
+
+
+
 erewrite innerjoinequivalence' in H.
 unfold runStatement in H.
 break_match; try discriminate.
@@ -608,10 +669,11 @@ fold (runStatement
                 (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) 
              r1 r2 (a, nil) true) in Heqo.
 unfold runImp'.
-repeat break_match; try discriminate. simpl in Heqo2.
-inv Heqo0. simpl. unfold runStatement in Heqo2 (* kind of want to unfold this less... Alternative is to pull out helper and write the innerjoinequivalence in terms of that function *)
 repeat break_match; try discriminate. 
-
+inv Heqo0. simpl. unfold runStatement in Heqo2.
+repeat break_match; try discriminate. simpl in Heqo0.   Print innerjoinequivalence''.
+(*erewrite <- innerjoinequivalence'' in Heqo0.*) assert (Some (nljoin_inner a r2) = Some l0). admit.
+clear Heqo0.
 
 
 (* rest below here *)
