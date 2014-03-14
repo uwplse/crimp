@@ -1,8 +1,8 @@
-Require Import Bool Arith List CpdtTactics CorgiTactics Query Imp.
+Require Import Bool Arith List CpdtTactics CrimpTactics Query Imp.
 Set Implicit Arguments.
 
 
-(* proof that the inner loops for nested loop join are equivalent *)
+(* equivalence proof for inner loop of nested loop join *)
 Lemma innerjoinequivalence : forall r''' a r, Some (nljoin_inner a r) = runStatement (ForAll (IndexedVarName 1) InputRelation2 (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r (pair a nil) true.
 Proof.
 intros r'''.
@@ -87,17 +87,6 @@ Qed.
 
 
 
-Ltac inv H := inversion H; subst; clear H.
-Ltac unfold_all := repeat match goal with 
-                  | [ |- runImp' _ _ _ = _ ] => unfold runImp'; [repeat break_match; try discriminate]
-                  | [H: runImp' _ _ _ = _ |- _ ] => unfold runImp' in H; [repeat break_match; try discriminate]
-                  | [H: runQuery _ _ _ = _ |- _ ] => unfold runQuery in H; [repeat break_match; try discriminate]
-                  | H: project _ _ = _ |- _ => unfold project in H                 
-                  | [H: runStatement _ _ _ _ _ = _ |- _ ] => unfold runStatement in H; [repeat break_match; try discriminate]
-                end.
-Ltac inv_somes := repeat match goal with
-                           | [ H: Some _ = Some _ |- _ ] => inv H
-                         end.
 
 Lemma some_eq' : forall (A:Type) (p:A) (q:A), Some p = Some q -> p = q.
 crush.
@@ -116,9 +105,6 @@ Lemma list_eq : forall (A : Type ) (h : A) t t' (h' : A), h :: t = h' :: t' -> (
 crush.
 Qed.
 
-Ltac massage_ihr1 := match goal with
-                              | H:context [ forall r2 _, runQuery _ _ _ = _ -> runImp' _ _ _ = _ ] |- _  => specialize (H r2); unfold runQuery in H
-                     end.
 
 Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
