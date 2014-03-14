@@ -14,8 +14,10 @@ Theorem queryEquivalence:
       forall (r1 r2 r' : relation), runQuery q r1 r2 = Some r' ->
         runImp' p r1 r2 = Some r'.
 ```
-Or "if the compiler accepts the query, and the query produces successful output, then the Imp program will
-succeed and produce the same output"
+Or 
+
+_if the compiler accepts the query, and the query produces successful output, then the Imp program will
+succeed and produce the same output_
 
 Inspired by verifying transformations in https://github.com/uwescience/datalogcompiler.
 
