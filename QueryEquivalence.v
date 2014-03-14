@@ -38,6 +38,7 @@ crush.
 unfold runStatement in IHr; rewrite <- IHr in Heqo0; clear IHr; crush.
 Qed.
 
+(* another form when lacking a Some *)
 Lemma innerjoinequivalence' : forall r''' a r, nljoin_inner a r = match runStatement
          (ForAll (IndexedVarName 1) InputRelation2
             (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r
@@ -45,7 +46,7 @@ Lemma innerjoinequivalence' : forall r''' a r, nljoin_inner a r = match runState
 intros; break_match; try discriminate; rewrite <- innerjoinequivalence in Heqo; crush.
 Qed.
 
-Section test.
+Section testunfold.
 Variable r''' : relation.
 Variable r : relation.
 Variable a : tuple.
@@ -53,7 +54,9 @@ Eval simpl in runStatement
          (ForAll (IndexedVarName 1) InputRelation2
             (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r
          (a, nil) true.
-End test.
+End testunfold.
+
+(* another form in terms of what runStatement unfolds to (unfolds through also runStatement MatchTuples) *)
 Lemma innerjoinequivalence'' : forall a r, Some (nljoin_inner a r) = (fix helper (rel : relation) (nested' : bool) {struct rel} :
           option (list tuple) :=
           match rel with
@@ -84,29 +87,39 @@ constructor.
 Qed.
 
 
-
-
-
-
+(* useful lemmas for massaging to needed form. Some of this may be covered by stl already *)
 Lemma some_eq' : forall (A:Type) (p:A) (q:A), Some p = Some q -> p = q.
 crush.
 Qed.
 Lemma some_eq : forall (A:Type) (p : A) (q : A), p = q -> Some p = Some q.
   crush.
 Qed.
-
-(* breaking apart a list relation; a Lemma seems unnecessary *)
 Lemma some_list_eq : forall (A : Type ) (h : A) t t' (h' : A), Some (h :: t) = Some (h' :: t') -> (t = t') /\ (h = h').
-crush.
+  crush.
 Qed.
-
-(* breaking apart a list relation; a Lemma seems unnecessary *)
 Lemma list_eq : forall (A : Type ) (h : A) t t' (h' : A), h :: t = h' :: t' -> (t = t') /\ (h = h').
-crush.
+  crush.
 Qed.
 
+(********************************
 
-Theorem queryEquivalence'': 
+The core theorem of Crimp.
+ 
+In one imprecise sentence: 
+compiling a query to Imp and running this program produces
+the same output as the query semantics.
+
+The equivalence we prove is: same output for successful compilation and execution.
+The theorem does not say whether the two semantics fail in the same way, but if
+the query semantics succeed then the Imp program must also succeed.
+ 
+general proof shape (up to and excluding join)
+- case analysis on query, induct on input relation, unfold semantics function calls/destruct matches, 
+unfold inductive hypothesis as necessary, apply it, crush/unification nudging
+
+*********************************)
+
+Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
       forall (r1 r2 r' : relation), runQuery q r1 r2 = Some r' ->
@@ -148,8 +161,8 @@ f_equal.
 massage_ihr1.
 unfold project in IHr1.
 apply IHr1 in Heqo6. clear IHr1.
-unfold_all.
-rewrite Heqo9 in Heqo3. clear Heqo9.
+unfold_all.       (* unfold_all is aggressive, so...*)
+rewrite Heqo9 in Heqo3. clear Heqo9. (* we tend to have to rewrite big terms that were probably syntactically equivalent before some of the unfolding. Better automation could prioritize the rewrites *)
 unfold fst in Heqo4.
 crush.
 
@@ -159,7 +172,7 @@ apply IHr1 in Heqo6. clear IHr1.
 unfold_all.
 crush.
 
-fold project in Heqo5.      (* new case *)
+fold project in Heqo5.
 massage_ihr1.
 apply IHr1 in Heqo5. clear IHr1.
 unfold_all.
@@ -182,9 +195,7 @@ apply IHr1 in H. clear IHr1.
 rewrite H1.
 
 unfold runImp' in H.
-break_match; try discriminate.
-break_match; try discriminate.
-break_match; try discriminate.
+repeat break_match; try discriminate.
 inv Heqo0. inversion H. clear H. 
 unfold runStatement in Heqo. inv Heqo.
 unfold runStatement in Heqo1.
@@ -196,12 +207,6 @@ break_match; try discriminate.
 f_equal. simpl. inv Heqo0.
 unfold runStatement in Heqo2.
 break_match; try discriminate. 
-(* crush. *)
-inv Heqo2. inv Heqo1. 
-unfold runStatement in Heqo. inv Heqo.
-unfold select in H1.
-(* Note that I cannot prove the remaining with explicit commands. crush 
-   (of course) takes care of it. *) 
 crush.
 
 
@@ -289,7 +294,6 @@ unfold_all; rewrite Heqo4 in Heqo6; clear Heqo4; crush.
 
 
 (* Join first case *)
-admit.
 
 (* this code is good progress
 Lemma complex_list_eq : forall (A:Type) (a:A) b c d e, Some ((a::b) ++ c) = Some (d :: e) -> (a = d) /\ Some (b++c) = Some e.
@@ -338,9 +342,10 @@ repeat break_match; try discriminate. simpl in Heqo0.   Print innerjoinequivalen
 clear Heqo0.
 
 end of good progress *)
+admit.
 Qed.
 
-(*(* rest below here *)
+(*(* other join tries below here *)
 induction r2.
 intros.
 unfold_all.
@@ -386,8 +391,10 @@ unfold runImp' in H0. unfold_all.
 - unify ProjectTuple and SelectTuple by bringing back AppendTuple
 *)
 
+
+
 (*
-Theorem queryEquivalence: 
+Theorem queryEquivalence'': 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
       forall (r r' : relation), runQuery q r = Some r' ->
