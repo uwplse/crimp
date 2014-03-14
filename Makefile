@@ -1,5 +1,8 @@
 
-default: CorgiTactics.vo
+default: CorgiTactics.vo Query.vo Imp.vo
 
 %.vo: %.v
-	coqc $<
+	coqc -I $(CPDT_HOME) $<
+
+clean:
+	rm -f ./*.vo
