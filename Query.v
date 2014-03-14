@@ -18,11 +18,12 @@ Inductive Pred : Set :=
   | PredBool : Bool -> Pred
   | PredFirst1 : Pred.  (* represents true if tuple[0]=1 *)
 
-Inductive Query : Set := 
-  | Select : Bool -> Query
-  | Project : nat -> Query
-  | SelectIf : Pred -> Query(* overlaps with Select *)
-  | JoinFirst : Query. 
+
+Inductive Query : Set :=
+  | FromInput : Query
+  | Project : nat -> Query -> Query
+  | SelectIf : Pred -> Query -> Query(* overlaps with Select *)
+  | JoinFirst : Query -> Query -> Query.
 (**
   end (Query language syntax)
 **)
@@ -104,15 +105,25 @@ Fixpoint nljoin (r1 : relation) (r2 : relation) : relation :=
 
 Eval simpl in project ((1 :: nil) :: (2 :: nil) :: nil) 0.
 
-Definition runQuery (q : Query) (inputRelation1 : relation) (inputRelation2 : relation) : option relation :=
+Fixpoint runQuery (q : Query) (inputRelation1 : relation) : option relation :=
   match q with 
-  | Select b => match b with 
-                | BTrue => Some inputRelation1
-                | BFalse => Some nil
-                end
-  | SelectIf pr => Some (select pr inputRelation1)
-  | Project index => project inputRelation1 index
-  | JoinFirst => Some (nljoin inputRelation1 inputRelation2)
+  | FromInput => Some inputRelation1
+  | SelectIf pr q' => match runQuery q' inputRelation1 with
+                        | Some inp' => Some (select pr inp')
+                        | None => None
+                      end
+  | Project index q' => match runQuery q' inputRelation1 with
+                          | Some inp' => project inp' index
+                          | None => None
+                        end
+  | JoinFirst q1' q2' => match runQuery q1' inputRelation1, runQuery q2' inputRelation1 with 
+                           | Some inp1', Some inp2' => Some (nljoin inp1' inp2')
+                           | _, _ => None
+                         end
   end.
 
-Eval compute in runQuery JoinFirst ((1::2::nil) :: (2::3::nil) :: nil) ((3::4::nil) :: (1::10::nil) :: (1::12::nil) :: nil).
+Eval compute in runQuery (Project 1 FromInput) ((1::nil) :: nil).
+
+Eval compute in runQuery (JoinFirst FromInput FromInput) ((1::2::nil) :: (2::3::nil) :: nil).
+
+Eval compute in runQuery (Project 1 (SelectIf PredFirst1 FromInput)) ((1::2::nil) :: (2::3::nil) :: nil). 
