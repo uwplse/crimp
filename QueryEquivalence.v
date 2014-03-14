@@ -1,248 +1,6 @@
-Require Import Bool Arith List CpdtTactics CorgiTactics.
+Require Import Bool Arith List CpdtTactics CorgiTactics Query Imp.
 Set Implicit Arguments.
 
-Definition tuple : Set :=
-  list nat.
-
-Definition relation : Set :=
-  list tuple.
-
-Inductive Bool : Set :=
-  | BTrue : Bool
-  | BFalse : Bool.
-
-(**
-  Query language syntax
-**) 
-Inductive Pred : Set :=
-  | PredBool : Bool -> Pred
-  | PredFirst1 : Pred.  (* represents true if tuple[0]=1 *)
-
-Inductive Query : Set := 
-  | Select : Bool -> Query
-  | Project : nat -> Query
-  | SelectIf : Pred -> Query(* overlaps with Select *)
-  | JoinFirst : Query. 
-(**
-  end (Query language syntax)
-**)
-
-
-Fixpoint projectTuple (t: tuple) (index: nat) : option tuple :=
-  match t with
-  | nil => None
-  | n :: rem => match index with
-                   | 0 => Some (n :: nil)
-                   | S index' => projectTuple rem index'
-                   end
-  end.
-
-Fixpoint project (input: relation) (index: nat) :=
-      match input with
-      | nil => Some nil
-      | tup :: rem => match (projectTuple tup index) with
-                            | None => None
-                            | Some tup' => let remres := project rem index in
-                               match remres with 
-                                 | None => None
-                                 | Some remres' => Some (tup' :: remres')       
-                               end
-                         end
-      end.
-
-Fixpoint select (pr: Pred)  (input: relation) :=
-  match pr with
-    | PredBool b =>
-      match b with
-        | BTrue => match input with
-                   | nil => nil
-                   | tup :: rem => tup :: (select pr rem)
-               end
-        | BFalse => match input with
-                  | nil => nil
-                  | _ :: rem => select pr rem
-                end
-      end
-    | PredFirst1 => match input with
-                      | nil => nil
-                      | t :: rem => match t with
-                                      | 1 :: _ => t :: (select pr rem)
-                                     (* picking semantics that length 0 tuples just fail the predicate rather than fail *)
-                                      | _ => select pr rem
-                                    end
-                    end                  
-    end.
-(*
-match input with
-    | nil => nil
-    | tup :: rem => match b with
-                      | BTrue => tup :: (select rem b)
-                      | BFalse => select rem b
-                    end
-    end.
-*)
-
-
-Definition joineq (t1 : tuple) (t2 : tuple) : bool :=
-  match t1, t2 with
-    | t1first :: _, t2first :: _ => beq_nat t1first t2first
-    | _, _ => false
-  end. 
-
-Fixpoint nljoin_inner (t : tuple) (r : relation) : relation :=
-match r with
-      | t' :: r' => if joineq t t' then (t ++ t') :: nljoin_inner t r' else nljoin_inner t r'
-      | nil => nil
-    end.
-
-Fixpoint nljoin (r1 : relation) (r2 : relation) : relation :=
-  match r1 with
-    | t1 :: r1' => (nljoin_inner t1 r2) ++ nljoin r1' r2
-    | nil => nil
-  end.
-
-
-Eval simpl in project ((1 :: nil) :: (2 :: nil) :: nil) 0.
-
-Definition runQuery (q : Query) (inputRelation1 : relation) (inputRelation2 : relation) : option relation :=
-  match q with 
-  | Select b => match b with 
-                | BTrue => Some inputRelation1
-                | BFalse => Some nil
-                end
-  | SelectIf pr => Some (select pr inputRelation1)
-  | Project index => project inputRelation1 index
-  | JoinFirst => Some (nljoin inputRelation1 inputRelation2)
-  end.
-
-Eval compute in runQuery JoinFirst ((1::2::nil) :: (2::3::nil) :: nil) ((3::4::nil) :: (1::10::nil) :: (1::12::nil) :: nil).
-
-(**
-  IMP syntax
-**)
-Inductive VarName : Set :=
-  | ResultName : VarName
-  | IndexedVarName : nat -> VarName.
-
-Inductive BExp : Set :=
-  | BoolBExp : Bool -> BExp
-  | Pred1Exp : BExp. 
-
-Inductive Exp : Set :=
-  | InputRelation1 : Exp
-  | InputRelation2 : Exp
-  | RelationExp : relation -> Exp
-(*  | TupleExp : tuple -> Exp *)
-  | NatExp : nat -> Exp
-  | BoolExp : BExp -> Exp.
-
-(* It turns out that Forall is already defined in Coq, so I used ForAll *)
-Inductive Statement : Set :=
-  | Assign : VarName -> Exp -> Statement
-  | ForAll : VarName -> Exp -> Statement -> Statement
-  | ProjectTuple : Exp -> VarName -> Statement
-  | SelectTuple : Exp -> VarName -> Statement
-  | MatchTuples : VarName -> VarName -> Statement.
-
-Inductive ImpProgram : Set :=
-  | Seq : Statement -> ImpProgram -> ImpProgram
-  | Skip.
-
-(**
-   end (IMP syntx
-**)
-
-Definition queryToImp (q : Query) : option ImpProgram :=
-  match q with
-  | Select b => match b with
-                | BTrue => Some (Seq (Assign ResultName InputRelation1) Skip) 
-                | BFalse => Some (Seq (Assign ResultName (RelationExp nil)) Skip)   
-                end
-  | Project index => Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (ProjectTuple (NatExp index) (IndexedVarName 0)))
-                        Skip))
-  | SelectIf pr => match pr with
-                     | PredBool b =>  
-                       Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0)))
-                        Skip))
-                     | PredFirst1 =>
-                       Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0)))
-                        Skip))
-                    end
-   | JoinFirst => Some
-                     (Seq
-                       (Assign ResultName (RelationExp nil))
-                       (Seq
-                         (ForAll (IndexedVarName 0) InputRelation1
-                           (ForAll (IndexedVarName 1) InputRelation2
-                             (MatchTuples (IndexedVarName 0) (IndexedVarName 1))))
-                         Skip))
-
-                        
-  end.
-
-(* heap is a tuple *)
-Fixpoint runStatement (s: Statement) (input1: relation) (input2: relation) (heap: tuple * tuple) (nested: bool) : option relation :=
-  match s with
-  | Assign ResultName e => match e with
-                           | InputRelation1 => Some input1
-                           | RelationExp rexp => Some rexp 
-                           | _ => None
-                           end
-  | Assign _ _ => None
-  | ProjectTuple (NatExp index) (IndexedVarName vnIndex) =>
-          match projectTuple (fst heap) index with
-          | Some tup => Some (tup :: nil)
-          | None => None
-          end
-  | ProjectTuple _ _ => None
-  | SelectTuple (BoolExp bexp) (IndexedVarName vnIndex) =>
-      match bexp with
-        | BoolBExp b => match b with
-                          | BTrue => Some ((fst heap) :: nil)
-                          | BFalse => Some nil
-                        end
-        | Pred1Exp => match (fst heap) with
-                        | 1 :: _ => Some ((fst heap) :: nil)
-                        | _ => Some nil
-                      end
-      end
-  | SelectTuple _ _ => None
-  | ForAll (IndexedVarName index) _ s' =>
-      let fix helper (rel: relation) (nested' : bool) :=
-        match rel with
-        | nil => Some nil
-        | t :: rem => 
-          let heap' := if nested' then pair (fst heap) t else pair t nil in
-          match (runStatement s' input1 input2 heap' true) with
-          | None => None
-          | Some res => match (helper rem nested') with
-                        | Some rem' => Some (res ++ rem')
-                        | None => None
-                        end
-          end
-        end
-      in if nested then helper input2 true else helper input1 false 
-  | ForAll _ _ _ => None
-  | MatchTuples (IndexedVarName vn1) (IndexedVarName vn2) =>
-       let (t1, t2) := ((fst heap), (snd heap)) in
-       if joineq t1 t2 then Some ((t1 ++ t2) :: nil) else Some nil
-  | MatchTuples _ _ => None
-  end.
 
 (* proof that the inner loops for nested loop join are equivalent *)
 Lemma innerjoinequivalence : forall r''' a r, Some (nljoin_inner a r) = runStatement (ForAll (IndexedVarName 1) InputRelation2 (MatchTuples (IndexedVarName 0) (IndexedVarName 1))) r''' r (pair a nil) true.
@@ -325,93 +83,9 @@ Grab Existential Variables.
 constructor.
 Qed.
 
-(* It turns out that we do not (and should not) have
-   runImpSmall (small step semantics). Because otherwise
-   Coq cannot figure out that our function is structurally
-   recursive. Special thanks go to Eric Mullen and Zach
-   Tatlock.
-*)
-Definition runImp (p : ImpProgram) (input1 : relation) (input2 : relation) : option relation :=
-  let fix helper (p : ImpProgram) (result: relation) : option relation := 
-    match p with
-    | Skip => Some result
-    | Seq s p' => match (runStatement s input1 input2 (pair nil nil) false) with
-                    | Some res => helper p' (result ++ res)
-                    | None => None
-                  end
-    end
-  in helper p nil.
 
 
-Fixpoint runImp' (p: ImpProgram) (input1: relation) (input2 : relation) : option relation :=
-  match p with
-    | Skip => Some nil
-    | Seq s p' => match (runStatement s input1 input2 (pair nil nil) false) with
-                    | Some res => match runImp' p' input1 input2 with
-                                    | Some remres => Some (res ++ remres)
-                                    | None => None
-                                      end
-                    | None => None
-                      end
-end.
 
-
-(** 
-  Test cases
-**)
-Eval compute in let p := queryToImp (Project 0) in
-                        match p with 
-                          | None => None
-                          | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3 :: 4 :: nil) :: nil) nil
-end.
-(* = Some [(1),(3)] *)
-
-Eval compute in let p := queryToImp (Project 2) in
-                        match p with 
-                          | None => None
-                          | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3::4::nil) :: nil) nil
-end.
-(* = None *)
-
-Eval compute in let p := queryToImp (Project 1) in
-                        match p with 
-                          | None => None
-                          | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3::4::nil) :: nil) nil
-end.
-(* = Some [(2),(4)] *)
-
-Eval compute in let p := queryToImp (SelectIf (PredBool BTrue)) in
-                          match p with
-                            | None => None
-                            | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3::4::nil) :: nil) nil
-end.
-(* = Some [(1,2),(3,4)] *)
-
-Eval compute in let p := queryToImp (SelectIf (PredBool BFalse)) in
-                          match p with
-                            | None => None
-                            | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3::4::nil) :: nil) nil
-end.
-
-Eval compute in let p := queryToImp (SelectIf PredFirst1) in
-                        match p with 
-                          | None => None
-                          | Some p' => runImp' p' ((1::2::nil) :: (3::4::nil) :: (0::1::nil) :: (1::6::nil) :: nil) nil
-end. 
-
-Eval compute in let p := queryToImp JoinFirst in
-  match p with
-    | None => None
-    | Some p' => runImp' p' ((1::2::nil) :: (2::3::nil) :: nil) ((3::4::nil) :: (1::10::nil) :: (1::12::nil) :: nil)
-end.
-(* = Some [(1,2),(1,6)] *)
-
-(**
-   end (Test cases)
-**)
-
-(* this appears to be less straight forward to convert to non-tail calls, but I think
-it is possible if we rely on monotonic query processing *)
 
 Ltac inv H := inversion H; subst; clear H.
 Ltac unfold_all := repeat match goal with 
@@ -629,7 +303,9 @@ unfold_all; rewrite Heqo4 in Heqo6; clear Heqo4; crush.
 
 
 (* Join first case *)
+admit.
 
+(* this code is good progress
 Lemma complex_list_eq : forall (A:Type) (a:A) b c d e, Some ((a::b) ++ c) = Some (d :: e) -> (a = d) /\ Some (b++c) = Some e.
 Proof.
 crush.
@@ -675,8 +351,10 @@ repeat break_match; try discriminate. simpl in Heqo0.   Print innerjoinequivalen
 (*erewrite <- innerjoinequivalence'' in Heqo0.*) assert (Some (nljoin_inner a r2) = Some l0). admit.
 clear Heqo0.
 
+end of good progress *)
+Qed.
 
-(* rest below here *)
+(*(* rest below here *)
 induction r2.
 intros.
 unfold_all.
@@ -715,15 +393,14 @@ assert (Some
 apply IHr2 in H0. clear IHr2.
 unfold runQuery in  IHr1.
 unfold runImp' in H0. unfold_all. 
-
-
-Qed.
-(* wish list:
-- unify ProjectTuple and SelectTuple by bringing back AppendTuple
-- try to remove duplication in proof
 *)
 
 
+(* wish list:
+- unify ProjectTuple and SelectTuple by bringing back AppendTuple
+*)
+
+(*
 Theorem queryEquivalence: 
   forall (q : Query) (p : ImpProgram),
     queryToImp q = Some p ->
@@ -855,3 +532,4 @@ Qed.
     compute;
     assumption.
 Qed.
+*)
