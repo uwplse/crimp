@@ -6,7 +6,7 @@ Certified Relational to Imperative.
 The goal of this project is a verified compiler from SQL-like
 queries to imperative code.
 
-The core theorem statement is
+The core theorem statement is of a similar form to other translation equivalence theorems.
 ```coq
 Theorem queryEquivalence:
   forall (q : Query) (p : ImpProgram),
