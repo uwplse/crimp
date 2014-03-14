@@ -1,9 +1,19 @@
 crimp
 =====
 
-Certified Relational to Imperative
+Certified Relational to Imperative.
 
+The goal of this project is a verified compiler from SQL-like
+queries to imperative code.
 
+The core theorem statement is
+```coq
+Theorem queryEquivalence:
+  forall (q : Query) (p : ImpProgram),
+    queryToImp q = Some p ->
+      forall (r1 r2 r' : relation), runQuery q r1 r2 = Some r' ->
+        runImp' p r1 r2 = Some r'.
+```
 
 Inspired by verifying transformations in https://github.com/uwescience/datalogcompiler.
 
