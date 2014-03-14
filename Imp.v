@@ -37,46 +37,26 @@ Inductive ImpProgram : Set :=
 **)
 
 Definition queryToImp (q : Query) : option ImpProgram :=
+  let structure (inner : Statement) :=
+     Some (Seq 
+                            (Assign ResultName (RelationExp nil))
+                            (Seq
+                              (ForAll (IndexedVarName 0) InputRelation1 inner)
+                              Skip))
+ in
+
   match q with
   | Select b => match b with
                 | BTrue => Some (Seq (Assign ResultName InputRelation1) Skip) 
                 | BFalse => Some (Seq (Assign ResultName (RelationExp nil)) Skip)   
                 end
-  | Project index => Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (ProjectTuple (NatExp index) (IndexedVarName 0)))
-                        Skip))
-  | SelectIf pr => match pr with
-                     | PredBool b =>  
-                       Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0)))
-                        Skip))
-                     | PredFirst1 =>
-                       Some 
-                     (Seq 
-                      (Assign ResultName (RelationExp nil))
-                      (Seq
-                        (ForAll (IndexedVarName 0) InputRelation1
-                          (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0)))
-                        Skip))
+  | Project index => structure (ProjectTuple (NatExp index) (IndexedVarName 0))
+  | SelectIf pr => match pr with 
+                       | PredBool b => structure (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0))
+                       | PredFirst1 => structure (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0))
                     end
-   | JoinFirst => Some
-                     (Seq
-                       (Assign ResultName (RelationExp nil))
-                       (Seq
-                         (ForAll (IndexedVarName 0) InputRelation1
-                           (ForAll (IndexedVarName 1) InputRelation2
-                             (MatchTuples (IndexedVarName 0) (IndexedVarName 1))))
-                         Skip))
-
-                        
+  | JoinFirst => structure (ForAll (IndexedVarName 1) InputRelation2
+                             (MatchTuples (IndexedVarName 0) (IndexedVarName 1)))
   end.
 
 (* heap is a tuple *)
@@ -199,19 +179,21 @@ Eval compute in let p := queryToImp (SelectIf (PredBool BFalse)) in
                             | None => None
                             | Some p' => runImp' p' ((1 :: 2 :: nil) :: (3::4::nil) :: nil) nil
 end.
+(* = Some [] *)
 
 Eval compute in let p := queryToImp (SelectIf PredFirst1) in
                         match p with 
                           | None => None
                           | Some p' => runImp' p' ((1::2::nil) :: (3::4::nil) :: (0::1::nil) :: (1::6::nil) :: nil) nil
 end. 
+(* = Some [(1,2),(1,6)] *)
 
 Eval compute in let p := queryToImp JoinFirst in
   match p with
     | None => None
     | Some p' => runImp' p' ((1::2::nil) :: (2::3::nil) :: nil) ((3::4::nil) :: (1::10::nil) :: (1::12::nil) :: nil)
 end.
-(* = Some [(1,2),(1,6)] *)
+(* = Some [(1,2,1,10), (1,2,1,12)] *)
 
 
 (**
