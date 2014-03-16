@@ -81,30 +81,36 @@ Inductive ImpProgram : Set :=
    end (IMP syntx
 **)
 
+(* Converts the input query to an imperative program. *)
 Definition queryToImp (q : Query) : option ImpProgram :=
+  (* All imperative programs begin by assigning the result to nil (e.g., Result = nil;). This method reduces that clutter. *)
   let structure (inner : Statement) :=
-     Some (Seq 
-                            (Assign ResultName (RelationExp nil))
-                            (Seq
-                              (ForAll (IndexedVarName 0) InputRelation1 inner)
-                              Skip))
- in
+    Some (Seq 
+      (Assign ResultName (RelationExp nil))
+      (Seq
+        (ForAll (IndexedVarName 0) InputRelation1 inner)
+        Skip))
+  in match q with
+     | Select b => match b with
+                   (* Select True => Result = Input; *)
+                   | BTrue => Some (Seq (Assign ResultName InputRelation1) Skip)
+                   (* Select False => Result = Nil; *) 
+                   | BFalse => Some (Seq (Assign ResultName (RelationExp nil)) Skip)   
+                   end
+     | Project index => structure (ProjectTuple (NatExp index) (IndexedVarName 0))
+     | SelectIf pr => match pr with 
+                      | PredBool b => structure (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0))
+                      | PredFirst1 => structure (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0))
+                      end
+     | JoinFirst => structure (ForAll (IndexedVarName 1) InputRelation2
+                              (MatchTuples (IndexedVarName 0) (IndexedVarName 1)))
+     end.
 
-  match q with
-  | Select b => match b with
-                | BTrue => Some (Seq (Assign ResultName InputRelation1) Skip) 
-                | BFalse => Some (Seq (Assign ResultName (RelationExp nil)) Skip)   
-                end
-  | Project index => structure (ProjectTuple (NatExp index) (IndexedVarName 0))
-  | SelectIf pr => match pr with 
-                       | PredBool b => structure (SelectTuple (BoolExp (BoolBExp b)) (IndexedVarName 0))
-                       | PredFirst1 => structure (SelectTuple (BoolExp Pred1Exp) (IndexedVarName 0))
-                    end
-  | JoinFirst => structure (ForAll (IndexedVarName 1) InputRelation2
-                             (MatchTuples (IndexedVarName 0) (IndexedVarName 1)))
-  end.
-
-(* heap is a tuple *)
+(* 
+    Runs the input statement on input relations, updating the heap and producing a relation (actually a tuple), if necessary. 
+    Note that to simplify representation, the heap is represented as a pair of tuples. These tuples represent the tuples bound to the
+    outer and inner loops in the program. The second tuple (of the heap) and the second input relation (input2) are only used by Join.
+*)
 Fixpoint runStatement (s: Statement) (input1: relation) (input2: relation) (heap: tuple * tuple) (nested: bool) : option relation :=
   match s with
   | Assign ResultName e => match e with
@@ -154,11 +160,10 @@ Fixpoint runStatement (s: Statement) (input1: relation) (input2: relation) (heap
   end.
 
 
-(* It turns out that we do not (and should not) have
-   runImpSmall (small step semantics). Because otherwise
-   Coq cannot figure out that our function is structurally
-   recursive. Special thanks go to Eric Mullen and Zach
-   Tatlock.
+(* 
+    Runs the input imperative program on the input relations and returns the result.
+    It turns out that we do not (and should not) have runImpSmall (small step semantics). Otherwise Coq cannot 
+    figure out that our function is structurally recursive. Special thanks go to Eric Mullen and Zach Tatlock.
 *)
 Definition runImp (p : ImpProgram) (input1 : relation) (input2 : relation) : option relation :=
   let fix helper (p : ImpProgram) (result: relation) : option relation := 
@@ -171,7 +176,10 @@ Definition runImp (p : ImpProgram) (input1 : relation) (input2 : relation) : opt
     end
   in helper p nil.
 
-
+(* 
+    Runs the input imperative program on the input relations and returns the result.
+    Non-tail recursive version.
+*)
 Fixpoint runImp' (p: ImpProgram) (input1: relation) (input2 : relation) : option relation :=
   match p with
     | Skip => Some nil
@@ -185,8 +193,6 @@ Fixpoint runImp' (p: ImpProgram) (input1: relation) (input2 : relation) : option
 end.
 (* this appears to be less straight forward to convert to non-tail calls, but I think
 it is possible if we rely on monotonic query processing *)
-
-
 
 (** 
   Test cases
@@ -239,7 +245,6 @@ Eval compute in let p := queryToImp JoinFirst in
     | Some p' => runImp' p' ((1::2::nil) :: (2::3::nil) :: nil) ((3::4::nil) :: (1::10::nil) :: (1::12::nil) :: nil)
 end.
 (* = Some [(1,2,1,10), (1,2,1,12)] *)
-
 
 (**
    end (Test cases)
