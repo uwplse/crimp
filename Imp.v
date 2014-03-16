@@ -4,33 +4,78 @@ Set Implicit Arguments.
 (**
   IMP syntax
 **)
+
+(*
+    Nameholders for variables.
+    Currently, there are two types:
+    1. Result: a special variable to initialize/update the return value of the program.
+    (Note: at this point, the result cannot be read. Only new tuples can be added to the current result)
+    2. Heap variables: special indexed variables that initialize/update global data. Currently, there are 2 heap variables:
+        a. 0 => Special index reserved for the tuple bound to each iteration of the outer ForAll loop (alternatively the only ForAll loop in the program, if applicable).
+        b. 1 => Special index reserved for the tuple bound to each iteration of the inner ForAll loop. Only valid for programs with multiple loops (e.g., Jo)
+*)
 Inductive VarName : Set :=
   | ResultName : VarName
   | IndexedVarName : nat -> VarName.
 
+(*
+    Boolean expressions.
+    Currenty, there are two ways to construct a boolean expression:
+    1. BoolBExp: Specifying the boolean value
+    2. Pred1Exp: ???
+*)
+(* KM: Brandon, why do we have a special BExp for booleans rather than having these under Exp? *)
 Inductive BExp : Set :=
   | BoolBExp : Bool -> BExp
   | Pred1Exp : BExp. 
 
+(*
+    Expressions. Current values are:
+    1. InputRelation1: First input relation to the program. This is also the relation for one-relation programs (e.g., SELECT)
+    2. InputRelation2: Second input relation to the program. Only valid for programs that need a second relation (e.g., JOIN)
+    3. RelationExp: Constructor to wrap the input relation to an expression.
+    4. NatExp: Constructor to wrap the input natural number to an expression.
+    5. BoolExp: Constructor to wrap the input boolean expression to an expression.
+*)
 Inductive Exp : Set :=
   | InputRelation1 : Exp
   | InputRelation2 : Exp
   | RelationExp : relation -> Exp
-(*  | TupleExp : tuple -> Exp *)
   | NatExp : nat -> Exp
   | BoolExp : BExp -> Exp.
 
-(* It turns out that Forall is already defined in Coq, so I used ForAll *)
+(*
+    Statements. Current values are:
+    1. Assign: Execute the statement and assign the result to the input expression.
+    2. ForAll: Iterate over the relation specified by the input expression, bind each tuple in this relation to the input variable name and execute the input statement for each of these tuples. 
+        Simulates the following loop.
+        for (Tuple tuple: relation.getTuples()) { 
+            runStatement(statement, tuple); 
+        }
+    3. ProjectTuple: For each tuple of the input relation, projects the element located at the specified index (NatExp) of the input expression, wraps it into a new tuple, and appends it to the result.
+        Note: The second argument (IndexedVarName) is not used at this point but is kept for extensibility.
+        Previously ProjectTuple was an expression (instead of statement) where the result of this projection needed to be stored in the heap. In future, this IndexedVarName will represent this heap variable.
+    4. SelectTuple: Retrieves the tuple located at the specified index (NatExp) of the input relation and appends it to the result.
+        Note: The second argument (IndexedVarName) is not used at this point but is kept for extensibility.
+        Previously ProjectTuple was an expression (instead of statement) where the result of this projection needed to be stored in the heap. In future, this IndexedVarName will represent this heap variable.
+    5. MatchTuples: ???
+*)
 Inductive Statement : Set :=
   | Assign : VarName -> Exp -> Statement
   | ForAll : VarName -> Exp -> Statement -> Statement
-  | ProjectTuple : Exp -> VarName -> Statement
+  | ProjectTuple : Exp -> VarName -> Statement 
   | SelectTuple : Exp -> VarName -> Statement
   | MatchTuples : VarName -> VarName -> Statement.
 
+(*
+    Imperative program representation.
+    We decided to differentiate Seq from other statements, so that Coq can immediately know that imperative programs nest Sequence over the second argument.
+    An imperative program is basically a list (Seq) of statements that end with a special program called Skip.
+*)
 Inductive ImpProgram : Set :=
   | Seq : Statement -> ImpProgram -> ImpProgram
   | Skip.
+
 
 (**
    end (IMP syntx
