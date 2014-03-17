@@ -31,7 +31,7 @@ Inductive Pred : Set :=
         BTrue: SELECT * FROM <input relation> WHERE 1=1
         BFalse: SELECT * FROM <input relation> WHERE 1=0
     Project: Represents
-        SELECT <attribute at the input index> FROM <input relation> WHERE 1=1
+        SELECT <attr> FROM <input relation>
     SelectIf: Represents
         SELECT * FROM <input relation> WHERE <pred>
         Note that SelectIf subsumes Select.
@@ -93,16 +93,6 @@ Fixpoint select (pr: Pred) (input: relation) :=
                   end                  
   end.
 
-(* KM: Brandon, do we need this code? *)
-(*
-match input with
-    | nil => nil
-    | tup :: rem => match b with
-                      | BTrue => tup :: (select rem b)
-                      | BFalse => select rem b
-                    end
-    end.
-*)
 
 (* 
     Join equality. 

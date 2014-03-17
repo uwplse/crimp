@@ -21,10 +21,9 @@ Inductive VarName : Set :=
 (*
     Boolean expressions.
     Currenty, there are two ways to construct a boolean expression:
-    1. BoolBExp: Specifying the boolean value
-    2. Pred1Exp: ???
+    1. BoolBExp: For the predicates true and false
+    2. Pred1Exp: true if the first attribute == 1
 *)
-(* KM: Brandon, why do we have a special BExp for booleans rather than having these under Exp? *)
 Inductive BExp : Set :=
   | BoolBExp : Bool -> BExp
   | Pred1Exp : BExp. 
@@ -58,7 +57,7 @@ Inductive Exp : Set :=
     4. SelectTuple: Retrieves the tuple located at the specified index (NatExp) of the input relation and appends it to the result.
         Note: The second argument (IndexedVarName) is not used at this point but is kept for extensibility.
         Previously ProjectTuple was an expression (instead of statement) where the result of this projection needed to be stored in the heap. In future, this IndexedVarName will represent this heap variable.
-    5. MatchTuples: ???
+    5. MatchTuples: Matches two tuples by an attribute (attribute hardcoded, so no syntax for specifying which)
 *)
 Inductive Statement : Set :=
   | Assign : VarName -> Exp -> Statement
@@ -191,8 +190,7 @@ Fixpoint runImp' (p: ImpProgram) (input1: relation) (input2 : relation) : option
                     | None => None
                       end
 end.
-(* this appears to be less straight forward to convert to non-tail calls, but I think
-it is possible if we rely on monotonic query processing *)
+
 
 (** 
   Test cases
