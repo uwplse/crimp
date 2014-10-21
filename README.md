@@ -19,7 +19,7 @@ Or
 _if the compiler accepts the query, and the query produces successful output according to the semantics of relational algebra(+), then the Imp program will
 succeed and produce the same output_
 
-Inspired by verifying transformations in https://github.com/uwescience/datalogcompiler.
+Inspired by verifying transformations in [Raco](https://github.com/uwescience/raco).
 
 ### Dependencies
 - Coq 8.4+ (tested at 8.4, may work with down to 8.2)
